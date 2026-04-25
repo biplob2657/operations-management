@@ -1,0 +1,2360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factory HRMS - Firebase Connected</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --primary: #1a5276; --secondary: #2874a6; --accent: #e74c3c;
+            --success: #27ae60; --warning: #f39c12; --dark: #2c3e50;
+            --light: #ecf0f1; --white: #ffffff; --shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa; color: var(--dark); overflow-x: hidden;
+        }
+        .login-screen {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 5000; padding: 20px; overflow-y: auto;
+        }
+        .login-box {
+            background: white; padding: 35px; border-radius: 16px;
+            width: 100%; max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.4s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .login-box h1 { text-align: center; color: var(--primary); font-size: 22px; margin-bottom: 4px; }
+        .login-box .subtitle { text-align: center; color: #7f8c8d; font-size: 13px; margin-bottom: 20px; }
+        .auth-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; }
+        .auth-tab {
+            flex: 1; padding: 12px; text-align: center; cursor: pointer;
+            font-size: 14px; font-weight: 600; color: #7f8c8d;
+            border-bottom: 2px solid transparent; margin-bottom: -2px;
+        }
+        .auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .fg { margin-bottom: 14px; }
+        .fg label { display: block; font-size: 11px; font-weight: 700; color: #5d6d7e; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .fg input, .fg select {
+            width: 100%; padding: 12px 14px; border: 1.5px solid #e0e0e0;
+            border-radius: 8px; font-size: 14px; transition: border 0.2s;
+        }
+        .fg input:focus, .fg select:focus { outline: none; border-color: var(--primary); }
+        .btn {
+            padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 600; display: inline-flex;
+            align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s; width: 100%;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--accent); color: white; }
+        .btn-outline { background: transparent; border: 1.5px solid #ddd; color: var(--dark); }
+        .btn-sm { padding: 6px 14px; font-size: 12px; width: auto; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .forgot-link { text-align: center; font-size: 13px; color: var(--primary); cursor: pointer; margin-top: 12px; }
+        .forgot-link:hover { text-decoration: underline; }
+        .app-container { display: none; }
+        .app-container.active { display: flex; }
+        .sidebar {
+            position: fixed; left: 0; top: 0; width: 260px; height: 100vh;
+            background: var(--dark); color: white; overflow-y: auto; z-index: 1000;
+            transition: transform 0.3s;
+        }
+        .sidebar.closed { transform: translateX(-100%); }
+        .sidebar-header { padding: 20px; background: var(--primary); border-bottom: 3px solid var(--accent); }
+        .sidebar-header h2 { font-size: 16px; margin-bottom: 3px; }
+        .sidebar-header p { font-size: 11px; opacity: 0.8; }
+        .nav-menu { list-style: none; padding: 8px 0; }
+        .nav-item {
+            padding: 11px 18px; cursor: pointer; display: flex;
+            align-items: center; gap: 12px; transition: all 0.2s;
+            border-left: 3px solid transparent; font-size: 13px;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.1); border-left-color: var(--accent);
+        }
+        .nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+        .nav-item .badge {
+            margin-left: auto; background: var(--accent); color: white;
+            padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
+        }
+        .nav-section {
+            padding: 14px 18px 4px; font-size: 10px;
+            text-transform: uppercase; letter-spacing: 1px; opacity: 0.5;
+        }
+        .main-content { margin-left: 260px; min-height: 100vh; width: calc(100% - 260px); }
+        .topbar {
+            background: white; padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100;
+        }
+        .menu-toggle { display: none; background: none; border: none; font-size: 22px; cursor: pointer; margin-right: 12px; }
+        .topbar h1 { font-size: 18px; color: var(--primary); }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .user-avatar {
+            width: 34px; height: 34px; border-radius: 50%; background: var(--primary);
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 13px;
+        }
+        .role-tag { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .role-admin { background: #fadbd8; color: #c0392b; }
+        .role-incharge { background: #fef9e7; color: #b7950b; }
+        .role-operator { background: #d5f5e3; color: #1e8449; }
+        .role-pending { background: #e8e8e8; color: #666; }
+        .content { padding: 20px 24px; }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white; padding: 16px; border-radius: 10px;
+            box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px;
+        }
+        .stat-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; flex-shrink: 0;
+        }
+        .stat-icon.blue { background: #ebf5fb; color: var(--primary); }
+        .stat-icon.green { background: #eafaf1; color: var(--success); }
+        .stat-icon.orange { background: #fef5e7; color: var(--warning); }
+        .stat-icon.red { background: #fdedec; color: var(--accent); }
+        .stat-icon.purple { background: #f5eef8; color: #7d3c98; }
+        .stat-info h3 { font-size: 22px; margin-bottom: 2px; }
+        .stat-info p { font-size: 11px; color: #7f8c8d; }
+        .panel {
+            background: white; border-radius: 10px;
+            box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden;
+        }
+        .panel-header {
+            padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .panel-header h3 { font-size: 15px; color: var(--dark); }
+        .panel-body { padding: 18px 20px; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            background: #f8f9fa; padding: 10px 12px; text-align: left;
+            font-size: 11px; font-weight: 700; color: #5d6d7e;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 2px solid #eee; white-space: nowrap;
+        }
+        .data-table td {
+            padding: 10px 12px; border-bottom: 1px solid #f5f5f5;
+            font-size: 13px; vertical-align: middle;
+        }
+        .data-table tr:hover { background: #fafbfc; }
+        .status-badge {
+            padding: 3px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 600; display: inline-block;
+        }
+        .status-active { background: #d5f5e3; color: #1e8449; }
+        .status-suspended { background: #fadbd8; color: #c0392b; }
+        .status-pending { background: #fef9e7; color: #b7950b; }
+        .status-approved { background: #d5f5e3; color: #1e8449; }
+        .status-rejected { background: #fadbd8; color: #c0392b; }
+        .shift-badge {
+            padding: 3px 10px; border-radius: 4px;
+            font-size: 11px; font-weight: bold; display: inline-block;
+        }
+        .shift-day { background: #ebf5fb; color: #1a5276; }
+        .shift-night { background: #f5eef8; color: #7d3c98; }
+        .shift-general { background: #fef9e7; color: #b7950b; }
+        .tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 18px; overflow-x: auto; }
+        .tab {
+            padding: 10px 16px; cursor: pointer; font-size: 13px;
+            font-weight: 500; color: #7f8c8d; border-bottom: 2px solid transparent;
+            margin-bottom: -2px; transition: all 0.2s; white-space: nowrap;
+        }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .form-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px; margin-bottom: 14px;
+        }
+        .fg2 label {
+            display: block; font-size: 11px; font-weight: 700;
+            color: #5d6d7e; margin-bottom: 5px; text-transform: uppercase;
+        }
+        .fg2 input, .fg2 select, .fg2 textarea {
+            width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0;
+            border-radius: 6px; font-size: 13px;
+        }
+        .fg2 input:focus, .fg2 select:focus, .fg2 textarea:focus {
+            outline: none; border-color: var(--primary);
+        }
+        .upload-area {
+            border: 2px dashed #ccc; border-radius: 10px;
+            padding: 35px; text-align: center; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .upload-area:hover { border-color: var(--primary); background: #f8f9fa; }
+        .upload-area .icon { font-size: 42px; margin-bottom: 8px; }
+        .upload-area p { color: #7f8c8d; font-size: 13px; }
+        .dept-tree { padding-left: 8px; }
+        .dept-item {
+            padding: 10px 14px; margin: 4px 0; background: #f8f9fa;
+            border-radius: 6px; display: flex; align-items: center;
+            gap: 10px; font-size: 13px;
+        }
+        .dept-item.dept { background: var(--primary); color: white; font-weight: 600; }
+        .dept-item.machine { margin-left: 22px; background: #eafaf1; }
+        .dept-count {
+            margin-left: auto; background: rgba(0,0,0,0.08);
+            padding: 2px 10px; border-radius: 10px; font-size: 11px;
+        }
+        .dept-actions { margin-left: auto; display: flex; gap: 5px; }
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 2000;
+            align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white; border-radius: 12px; width: 100%;
+            max-width: 600px; max-height: 90vh; overflow-y: auto;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header {
+            padding: 18px 22px; border-bottom: 1px solid #f0f0f0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-body { padding: 22px; }
+        .modal-footer {
+            padding: 14px 22px; border-top: 1px solid #f0f0f0;
+            display: flex; justify-content: flex-end; gap: 10px;
+        }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d; }
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+        .toast {
+            position: fixed; top: 16px; right: 16px; background: var(--dark); color: white;
+            padding: 14px 20px; border-radius: 8px; box-shadow: var(--shadow); z-index: 3000;
+            display: none; animation: toastIn 0.3s ease; font-size: 13px; max-width: 320px;
+        }
+        @keyframes toastIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .toast.show { display: block; }
+        .empty-state { text-align: center; padding: 40px; color: #7f8c8d; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+        .search-box { position: relative; width: 100%; max-width: 280px; }
+        .search-box input {
+            width: 100%; padding: 8px 32px 8px 12px;
+            border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px;
+        }
+        .search-box .search-icon {
+            position: absolute; right: 10px; top: 50%;
+            transform: translateY(-50%); color: #7f8c8d; font-size: 14px;
+        }
+        .highlight-box {
+            padding: 12px 14px; border-radius: 8px; margin: 10px 0;
+            font-size: 12px; line-height: 1.5;
+        }
+        .highlight-info { background: #ebf5fb; border-left: 4px solid var(--primary); }
+        .highlight-warning { background: #fef9e7; border-left: 4px solid var(--warning); }
+        .highlight-success { background: #d5f5e3; border-left: 4px solid var(--success); }
+        .filter-bar {
+            display: flex; gap: 10px; margin-bottom: 15px;
+            flex-wrap: wrap; align-items: center;
+        }
+        .filter-bar select, .filter-bar input {
+            padding: 8px 12px; border: 1.5px solid #e0e0e0;
+            border-radius: 6px; font-size: 13px;
+        }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+        .tag-cl { background: #d5f5e3; color: #1e8449; }
+        .tag-sl { background: #fadbd8; color: #c0392b; }
+        .tag-el { background: #ebf5fb; color: #1a5276; }
+        .worker-search-result {
+            background: #f8f9fa; border: 1.5px solid #e0e0e0; border-radius: 8px;
+            padding: 14px; margin: 10px 0;
+        }
+        .worker-search-result.found { background: #eafaf1; border-color: var(--success); }
+        .worker-search-result.not-found { background: #fdedec; border-color: var(--accent); }
+        .searchable-select { position: relative; }
+        .searchable-select input {
+            width: 100%; padding: 10px 30px 10px 12px;
+            border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px;
+            cursor: pointer;
+        }
+        .searchable-select .dropdown-arrow {
+            position: absolute; right: 10px; top: 50%;
+            transform: translateY(-50%); pointer-events: none; font-size: 10px;
+        }
+        .searchable-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #ddd; border-radius: 6px;
+            margin-top: 4px; max-height: 220px; overflow-y: auto;
+            z-index: 100; box-shadow: var(--shadow); display: none;
+        }
+        .searchable-dropdown.show { display: block; }
+        .searchable-dropdown .dd-search {
+            padding: 8px; border-bottom: 1px solid #f0f0f0;
+            position: sticky; top: 0; background: white;
+        }
+        .searchable-dropdown .dd-search input {
+            width: 100%; padding: 8px 10px; border: 1px solid #e0e0e0;
+            border-radius: 4px; font-size: 12px;
+        }
+        .searchable-dropdown .dd-item {
+            padding: 10px 12px; cursor: pointer; font-size: 13px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .searchable-dropdown .dd-item:hover { background: #f8f9fa; }
+        .searchable-dropdown .dd-item.selected { background: #ebf5fb; font-weight: 600; }
+        .searchable-dropdown .dd-empty { padding: 12px; text-align: center; color: #7f8c8d; font-size: 12px; }
+        .calendar-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+        }
+        .calendar-day {
+            background: #f8f9fa; border-radius: 6px; padding: 8px;
+            min-height: 70px; font-size: 11px; position: relative;
+        }
+        .calendar-day-header {
+            font-weight: bold; color: var(--primary); margin-bottom: 3px; font-size: 12px;
+        }
+        .calendar-event {
+            padding: 2px 5px; border-radius: 3px; font-size: 9px;
+            margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .event-cl { background: #d5f5e3; color: #1e8449; }
+        .event-sl { background: #fadbd8; color: #c0392b; }
+        .event-el { background: #ebf5fb; color: #1a5276; }
+        .event-blackout { background: #fadbd8; color: #c0392b; font-weight: bold; }
+        .event-shift-day { background: #ebf5fb; color: #1a5276; font-weight: bold; }
+        .event-shift-night { background: #f5eef8; color: #7d3c98; font-weight: bold; }
+        .calendar-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px;
+        }
+        .calendar-nav button {
+            background: var(--primary); color: white; border: none;
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .calendar-nav h3 { font-size: 18px; color: var(--dark); }
+        .bulk-bar {
+            display: flex; gap: 10px; align-items: center;
+            padding: 10px; background: #f8f9fa; border-radius: 6px;
+            margin-bottom: 10px; font-size: 13px;
+        }
+        .bulk-bar button { width: auto; }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; width: 100%; }
+            .menu-toggle { display: block; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .topbar h1 { font-size: 16px; }
+            .data-table { font-size: 12px; }
+            .data-table th, .data-table td { padding: 8px; }
+            .login-box { padding: 25px; }
+        }
+        .loading {
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%; border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="toast" id="toast">Action completed!</div>
+
+    <!-- LOGIN / SIGN UP / FORGOT -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box" id="authBox">
+            <h1>🏭 Factory HRMS</h1>
+            <p class="subtitle">Production Manpower Management System</p>
+
+            <div style="background:#d5f5e3;border-radius:8px;padding:12px;margin-bottom:18px;font-size:12px;color:#1e8449;">
+                <strong>✅ Firebase Connected:</strong> factory-hrms-rr<br>
+                All data saves to your Firebase cloud.
+            </div>
+
+            <div class="auth-tabs" id="authTabs">
+                <div class="auth-tab active" onclick="switchAuthTab('login')">🔐 Login</div>
+                <div class="auth-tab" onclick="switchAuthTab('signup')">📝 Sign Up</div>
+            </div>
+
+            <div id="loginForm">
+                <div class="fg">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" placeholder="your@email.com">
+                </div>
+                <div class="fg">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter password">
+                </div>
+                <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">🔐 Login</button>
+                <div class="forgot-link" onclick="showForgotPassword()">Forgot Password?</div>
+            </div>
+
+            <div id="signupForm" style="display:none;">
+                <div class="fg">
+                    <label>Full Name *</label>
+                    <input type="text" id="suName" placeholder="Your full name">
+                </div>
+                <div class="fg">
+                    <label>Email *</label>
+                    <input type="email" id="suEmail" placeholder="your@email.com">
+                </div>
+                <div class="fg">
+                    <label>Password *</label>
+                    <input type="password" id="suPassword" placeholder="Min 6 characters">
+                </div>
+                <div class="fg">
+                    <label>Department *</label>
+                    <select id="suDept">
+                        <option value="">Select Department</option>
+                        <option>Operations</option>
+                        <option>Enamel</option>
+                        <option>Wire Drawing</option>
+                        <option>Extrusion</option>
+                        <option>Paper Covering</option>
+                        <option>Cable</option>
+                        <option>Twisting</option>
+                    </select>
+                </div>
+                <div class="fg">
+                    <label>Request Role *</label>
+                    <select id="suRole">
+                        <option value="">Select Role</option>
+                        <option value="incharge">Shift Incharge</option>
+                        <option value="operator">Operator</option>
+                    </select>
+                </div>
+                <div class="highlight-box highlight-warning" style="font-size:11px;">
+                    <strong>⚠️ Note:</strong> Your account will be created but <strong>pending admin approval</strong>. First user becomes Admin automatically.
+                </div>
+                <button class="btn btn-success" id="signupBtn" onclick="doSignUp()">📝 Sign Up</button>
+            </div>
+
+            <div id="forgotForm" style="display:none;">
+                <div class="fg">
+                    <label>Email</label>
+                    <input type="email" id="fpEmail" placeholder="your@email.com">
+                </div>
+                <div class="highlight-box highlight-info" style="font-size:11px;">
+                    A password reset link will be sent to your email.
+                </div>
+                <button class="btn btn-primary" onclick="sendResetLink()">📧 Send Reset Link</button>
+                <div class="forgot-link" onclick="showLoginForm()">← Back to Login</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="login-screen" id="pendingScreen" style="display:none;">
+        <div class="login-box" style="text-align:center;">
+            <div style="font-size:64px;margin-bottom:20px;">⏳</div>
+            <h2 style="color:var(--primary);margin-bottom:10px;">Account Pending Approval</h2>
+            <p style="color:#7f8c8d;font-size:14px;margin-bottom:20px;">
+                Your account has been created.<br>
+                Please wait for <strong>Admin approval</strong>.
+            </p>
+            <div class="highlight-box highlight-warning" style="text-align:left;">
+                <strong>Your Details:</strong><br>
+                Name: <span id="pendingName">-</span><br>
+                Email: <span id="pendingEmail">-</span><br>
+                Requested Role: <span id="pendingRole">-</span><br>
+                Status: <span class="status-badge status-pending">Pending Approval</span>
+            </div>
+            <button class="btn btn-outline" style="margin-top:20px;" onclick="backToLogin()">← Back to Login</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="app-container" id="appContainer">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>🏭 Factory HRMS</h2>
+                <p id="sidebarRoleText">Admin Access</p>
+            </div>
+            <ul class="nav-menu" id="navMenu"></ul>
+        </nav>
+
+        <div class="main-content" id="mainContent">
+            <div class="topbar">
+                <div style="display:flex;align-items:center;">
+                    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="user-info">
+                    <span class="role-tag" id="topRoleTag">Admin</span>
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:600;" id="userName">Admin</div>
+                        <div style="font-size:11px;color:#7f8c8d;cursor:pointer;" onclick="logout()">🚪 Logout</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+
+                <div id="dashboard" class="page-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon blue">👷</div>
+                            <div class="stat-info"><h3 id="statTotalWorkers">0</h3><p>Total Manpower</p></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon green">✅</div>
+                            <div class="stat-info"><h3 id="statActiveWorkers">0</h3><p>Active</p></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon orange">📅</div>
+                            <div class="stat-info"><h3 id="statPendingLeave">0</h3><p>Pending Leave</p></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon purple">🌙</div>
+                            <div class="stat-info"><h3 id="statCurrentShift">-</h3><p>Current Shift</p></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon red">⏰</div>
+                            <div class="stat-info"><h3>0</h3><p>Pending OT</p></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon blue">⚠️</div>
+                            <div class="stat-info"><h3>0</h3><p>Showcause</p></div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>📊 Today's Manpower by Department</h3>
+                            <span style="font-size:12px;color:#7f8c8d;" id="dashboardDate">-</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-info">
+                                <strong>ℹ️ Display Rule:</strong> Enamel shows all manpower under Department. Other departments show manpower under their Machines.
+                            </div>
+                            <div id="deptSummaryTable"></div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+                        <div class="panel">
+                            <div class="panel-header"><h3>🔄 This Week's Shift</h3></div>
+                            <div class="panel-body">
+                                <table class="data-table">
+                                    <thead><tr><th>Shift</th><th>Timing</th><th>Type</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><span class="shift-badge shift-day">Day</span></td><td>08:00 - 20:00</td><td>Rotating</td></tr>
+                                        <tr><td><span class="shift-badge shift-night">Night</span></td><td>20:01 - 08:00</td><td>Rotating</td></tr>
+                                        <tr><td><span class="shift-badge shift-general">General</span></td><td>08:00-17:00 / 09:00-18:00</td><td>Fixed</td></tr>
+                                    </tbody>
+                                </table>
+                                <div class="highlight-box highlight-success" style="margin-top:12px;">
+                                    <strong>📌 Current:</strong> <span id="currentShiftText">-</span><br>
+                                    Rotation: Day ↔ Night (alternates weekly)
+                                </div>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h3>📋 Leave Policy</h3></div>
+                            <div class="panel-body">
+                                <table class="data-table">
+                                    <thead><tr><th>Type</th><th>Days</th><th>Carry</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><span class="tag tag-cl">CL</span></td><td>10</td><td>No</td></tr>
+                                        <tr><td><span class="tag tag-sl">SL</span></td><td>14</td><td>No</td></tr>
+                                        <tr><td><span class="tag tag-el">EL</span></td><td>15</td><td>Yes</td></tr>
+                                        <tr><td>LWP</td><td>∞</td><td>N/A</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="departments" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🏢 Department & Machine Master</h3>
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn btn-sm btn-primary" onclick="openModal('addDeptModal')">➕ Add Dept</button>
+                                <button class="btn btn-sm btn-success" onclick="openModal('addMachineModal')">➕ Add Machine</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-info">
+                                <strong>Rule:</strong> If department has NO machines, Machine name = Department name. <strong>Enamel:</strong> All manpower shown directly under department.
+                            </div>
+                            <div id="deptTreeContainer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="workers" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>👷 Manpower Master</h3>
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn btn-sm btn-success" onclick="openModal('csvModal')">📤 CSV Upload</button>
+                                <button class="btn btn-sm btn-primary" onclick="openModal('addWorkerModal')">➕ Add Manpower</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="filter-bar">
+                                <div class="search-box">
+                                    <input type="text" id="workerSearch" placeholder="Search name, code..." oninput="filterWorkers()">
+                                    <span class="search-icon">🔍</span>
+                                </div>
+                                <select id="filterDept" onchange="filterWorkers()"><option value="">All Departments</option></select>
+                                <select id="filterShift" onchange="filterWorkers()">
+                                    <option value="">All Shifts</option><option value="Day">Day</option><option value="Night">Night</option><option value="General">General</option>
+                                </select>
+                                <select id="filterStatus" onchange="filterWorkers()">
+                                    <option value="">All Status</option><option value="Active">Active</option><option value="Suspended">Suspended</option>
+                                </select>
+                            </div>
+
+                            <div class="bulk-bar" id="bulkBar" style="display:none;">
+                                <input type="checkbox" id="selectAllBulk" onchange="toggleSelectAll()">
+                                <label for="selectAllBulk" style="font-size:13px;cursor:pointer;">Select All</label>
+                                <span id="selectedCount" style="font-size:13px;color:#7f8c8d;">0 selected</span>
+                                <button class="btn btn-sm btn-danger" onclick="bulkDelete()">🗑️ Delete Selected</button>
+                            </div>
+
+                            <div style="overflow-x:auto;">
+                                <table class="data-table" id="workerTable">
+                                    <thead>
+                                        <tr>
+                                            <th><input type="checkbox" id="selectAllHeader" onchange="toggleSelectAll()"></th>
+                                            <th>Code</th><th>Name</th><th>Salary</th><th>Dept</th>
+                                            <th>Machine</th><th>Designation</th><th>Shift</th>
+                                            <th>Type</th><th>Status</th><th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="workerTableBody"></tbody>
+                                </table>
+                            </div>
+                            <div id="workerPagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="leaveApply" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>📝 Apply Leave for Manpower</h3>
+                            <span style="font-size:12px;color:#7f8c8d;">Search by Manpower ID, then fill form</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-info">
+                                <strong>Workflow:</strong> Manpower comes to Shift Incharge → Incharge searches by ID → Fills leave form → Submits → Admin or Incharge approves later.
+                            </div>
+
+                            <div class="form-row">
+                                <div class="fg2" style="flex:2;">
+                                    <label>Search Manpower by ID or Name *</label>
+                                    <div class="search-box" style="max-width:100%;">
+                                        <input type="text" id="leaveSearchWorker" placeholder="Type PW-001 or Forkan..." oninput="searchWorkerForLeave()">
+                                        <span class="search-icon">🔍</span>
+                                    </div>
+                                </div>
+                                <div class="fg2" style="display:flex;align-items:flex-end;">
+                                    <button class="btn btn-primary" style="width:auto;" onclick="searchWorkerForLeave()">🔍 Search</button>
+                                </div>
+                            </div>
+
+                            <div id="workerSearchResult"></div>
+
+                            <div id="leaveFormSection" style="display:none;margin-top:20px;border-top:2px solid #f0f0f0;padding-top:20px;">
+                                <h4 style="font-size:14px;margin-bottom:14px;color:var(--primary);">✏️ Fill Leave Application</h4>
+
+                                <div class="form-row">
+                                    <div class="fg2"><label>Manpower Code</label><input type="text" id="laCode" readonly style="background:#f8f9fa;"></div>
+                                    <div class="fg2"><label>Name</label><input type="text" id="laName" readonly style="background:#f8f9fa;"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="fg2"><label>Department</label><input type="text" id="laDept" readonly style="background:#f8f9fa;"></div>
+                                    <div class="fg2"><label>Machine</label><input type="text" id="laMachine" readonly style="background:#f8f9fa;"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="fg2"><label>Current Shift</label><input type="text" id="laShift" readonly style="background:#f8f9fa;"></div>
+                                    <div class="fg2">
+                                        <label>Leave Balance</label>
+                                        <input type="text" id="laBalance" readonly style="background:#f8f9fa;font-size:12px;">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="fg2">
+                                        <label>Leave Type *</label>
+                                        <select id="laType" onchange="calcLeaveDays()">
+                                            <option value="">Select type</option>
+                                            <option value="CL">Casual Leave (CL)</option>
+                                            <option value="SL">Sick Leave (SL)</option>
+                                            <option value="EL">Earned Leave (EL)</option>
+                                            <option value="Half-CL">Half-Day (CL)</option>
+                                            <option value="Half-SL">Half-Day (SL)</option>
+                                            <option value="LWP">Leave Without Pay (LWP)</option>
+                                        </select>
+                                    </div>
+                                    <div class="fg2"><label>Applied By</label><input type="text" id="laAppliedBy" readonly style="background:#f8f9fa;"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="fg2"><label>From Date *</label><input type="date" id="laFrom" onchange="calcLeaveDays()"></div>
+                                    <div class="fg2"><label>To Date *</label><input type="date" id="laTo" onchange="calcLeaveDays()"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="fg2"><label>Total Days</label><input type="text" id="laDays" readonly style="background:#f8f9fa;font-weight:bold;"></div>
+                                    <div class="fg2"><label>Attachment (SL > 2 days)</label><input type="file" id="laFile" style="padding:8px;"></div>
+                                </div>
+                                <div class="fg2">
+                                    <label>Reason *</label>
+                                    <textarea id="laReason" rows="3" placeholder="Enter reason..."></textarea>
+                                </div>
+                                <div class="highlight-box highlight-warning">
+                                    This leave request will go to <strong>Shift Incharge / Admin</strong> for approval.
+                                </div>
+                                <div style="display:flex;gap:10px;margin-top:16px;">
+                                    <button class="btn btn-outline" style="width:auto;" onclick="clearLeaveForm()">Clear</button>
+                                    <button class="btn btn-primary" style="width:auto;" onclick="submitLeave()">📤 Submit Leave Application</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="leaveApprove" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>⏳ Pending Leave Approvals</h3>
+                            <span class="role-tag role-incharge">Approval View</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-info">
+                                <strong>ℹ️ You can approve/reject leave for ANY department.</strong> All pending requests are shown here.
+                            </div>
+                            <div id="pendingLeaveList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="calendar" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🗓️ Leave Calendar</h3>
+                            <div style="display:flex;gap:10px;">
+                                <select id="calDept" onchange="renderCalendar()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;">
+                                    <option value="">All Departments</option>
+                                </select>
+                                <select id="calShift" onchange="renderCalendar()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;">
+                                    <option value="">All Shifts</option>
+                                    <option value="Day">Day</option>
+                                    <option value="Night">Night</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="calendar-nav">
+                                <button onclick="changeMonth(-1)">← Prev</button>
+                                <h3 id="calMonthYear">-</h3>
+                                <button onclick="changeMonth(1)">Next →</button>
+                            </div>
+                            <div style="display:flex;gap:15px;margin-bottom:15px;flex-wrap:wrap;">
+                                <span style="font-size:12px;"><span style="display:inline-block;width:12px;height:12px;background:#d5f5e3;border-radius:3px;margin-right:5px;"></span> CL</span>
+                                <span style="font-size:12px;"><span style="display:inline-block;width:12px;height:12px;background:#fadbd8;border-radius:3px;margin-right:5px;"></span> SL</span>
+                                <span style="font-size:12px;"><span style="display:inline-block;width:12px;height:12px;background:#ebf5fb;border-radius:3px;margin-right:5px;"></span> EL</span>
+                                <span style="font-size:12px;"><span style="display:inline-block;width:12px;height:12px;background:#fadbd8;border-radius:3px;margin-right:5px;"></span> Blackout</span>
+                                <span style="font-size:12px;"><span style="display:inline-block;width:12px;height:12px;background:#ebf5fb;border:2px solid #1a5276;border-radius:3px;margin-right:5px;"></span> Day Shift</span>
+                                <span style="font-size:12px;"><span style="display:inline-block;width:12px;height:12px;background:#f5eef8;border:2px solid #7d3c98;border-radius:3px;margin-right:5px;"></span> Night Shift</span>
+                            </div>
+                            <div class="calendar-grid" id="calendarGrid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="blackout" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🔒 Blackout Date Management</h3>
+                            <button class="btn btn-sm btn-primary" onclick="openModal('addBlackoutModal')">➕ Add Blackout</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-warning">
+                                <strong>⚠️ Important:</strong> On blackout dates, leave applications will show a warning. Admin can override, but Shift Incharge will be alerted.
+                            </div>
+                            <div id="blackoutList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pendingUsers" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>⏳ Pending User Approvals</h3>
+                            <span class="role-tag role-admin">Admin Only</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-info">
+                                <strong>First sign-up = Auto Admin:</strong> The very first person to sign up automatically becomes Admin. Everyone after that goes to Pending Approval.
+                            </div>
+                            <div id="pendingUsersList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="deptLeaveDetails" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>📋 My Department Leave Details</h3>
+                            <span style="font-size:12px;color:#7f8c8d;">View-only access</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="highlight-box highlight-info">
+                                <strong>ℹ️ You can only VIEW leave details of manpower in YOUR department.</strong> Contact your Shift Incharge for leave requests.
+                            </div>
+
+                            <div class="tabs">
+                                <div class="tab active" onclick="switchTab(this, 'op-pending')">⏳ Pending</div>
+                                <div class="tab" onclick="switchTab(this, 'op-approved')">✅ Approved</div>
+                                <div class="tab" onclick="switchTab(this, 'op-rejected')">❌ Rejected</div>
+                                <div class="tab" onclick="switchTab(this, 'op-my-leave')">📊 My Leave</div>
+                            </div>
+
+                            <div id="op-pending" class="tab-content active"><div id="opPendingLeave"></div></div>
+                            <div id="op-approved" class="tab-content" style="display:none;"><div id="opApprovedLeave"></div></div>
+                            <div id="op-rejected" class="tab-content" style="display:none;"><div id="opRejectedLeave"></div></div>
+                            <div id="op-my-leave" class="tab-content" style="display:none;"><div id="opMyLeave"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="settings" class="page-section">
+                    <div class="panel">
+                        <div class="panel-header"><h3>⚙️ System Settings</h3></div>
+                        <div class="panel-body" style="font-size:13px;line-height:1.8;">
+                            <div class="highlight-box highlight-success">
+                                <strong>✅ Firebase Connected:</strong> factory-hrms-rr<br>
+                                All data is being saved to your Firebase cloud database.
+                            </div>
+                            <h4 style="margin:20px 0 10px;color:var(--primary);">Connected Project</h4>
+                            <table class="data-table">
+                                <tr><td><strong>Project ID</strong></td><td>factory-hrms-rr</td></tr>
+                                <tr><td><strong>Auth Domain</strong></td><td>factory-hrms-rr.firebaseapp.com</td></tr>
+                                <tr><td><strong>Storage</strong></td><td>factory-hrms-rr.firebasestorage.app</td></tr>
+                            </table>
+                            <div style="margin-top:20px;">
+                                <button class="btn btn-outline btn-sm" onclick="exportAllData()" style="width:auto;">📥 Export All Data</button>
+                                <button class="btn btn-danger btn-sm" onclick="clearAllData()" style="width:auto;margin-left:10px;">🗑️ Clear All Data</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal-overlay" id="csvModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📤 Bulk Upload Manpower (CSV)</h3>
+                <button class="close-btn" onclick="closeModal('csvModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-area" onclick="document.getElementById('csvFileInput').click()">
+                    <div class="icon">📁</div>
+                    <p><strong>Click to upload CSV file</strong></p>
+                    <p>or drag and drop here</p>
+                    <p style="font-size:12px;color:#7f8c8d;margin-top:8px;">.csv, .xlsx | Max 5MB</p>
+                    <input type="file" id="csvFileInput" accept=".csv,.xlsx" style="display:none;" onchange="handleCSVUpload(this)">
+                </div>
+                <div style="margin-top:16px;">
+                    <h4 style="font-size:13px;margin-bottom:8px;">📋 Required Columns:</h4>
+                    <div style="background:#f8f9fa;padding:10px;border-radius:6px;font-size:11px;font-family:monospace;overflow-x:auto;line-height:1.8;">
+                        Employee_Code, Full_Name, Current_Salary, Father_Name, Gender, DOB, DOJ, Department, Machine, Designation, Employment_Type, Contact, Emergency_Contact, Shift_Cycle, Cycle_Start_Date, Status
+                    </div>
+                </div>
+                <div id="csvPreview" style="margin-top:12px;max-height:200px;overflow:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="width:auto;" onclick="closeModal('csvModal')">Cancel</button>
+                <button class="btn btn-primary" style="width:auto;" id="csvConfirmBtn" onclick="confirmCSVUpload()" disabled>📤 Confirm Upload</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addWorkerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>➕ Add New Manpower</h3>
+                <button class="close-btn" onclick="closeModal('addWorkerModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="fg2"><label>Manpower Code *</label><input type="text" id="awCode" placeholder="e.g., PW-100"></div>
+                    <div class="fg2"><label>Full Name *</label><input type="text" id="awName" placeholder="Manpower name"></div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2"><label>Current Salary (৳) *</label><input type="number" id="awSalary" placeholder="e.g., 18000"></div>
+                    <div class="fg2"><label>Date of Joining *</label><input type="date" id="awDOJ"></div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2">
+                        <label>Department *</label>
+                        <select id="awDept" onchange="updateMachineDropdown()"><option value="">Select Department</option></select>
+                    </div>
+                    <div class="fg2">
+                        <label>Machine / Line *</label>
+                        <select id="awMachine"><option value="">Select Machine</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2"><label>Designation *</label><input type="text" id="awDesig" placeholder="e.g., Operator"></div>
+                    <div class="fg2">
+                        <label>Employment Type *</label>
+                        <select id="awType"><option>Permanent</option><option>Contract</option><option>Daily Wage</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2">
+                        <label>Shift Cycle *</label>
+                        <select id="awShiftCycle"><option value="DayNight">Day ↔ Night (Rotating)</option><option value="General">General (Fixed)</option></select>
+                    </div>
+                    <div class="fg2"><label>Cycle Start Date *</label><input type="date" id="awCycleStart"></div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2"><label>Father Name</label><input type="text" id="awFather" placeholder="Optional"></div>
+                    <div class="fg2"><label>Gender</label><select id="awGender"><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2"><label>Date of Birth</label><input type="date" id="awDOB"></div>
+                    <div class="fg2"><label>Contact</label><input type="text" id="awContact" placeholder="10-digit mobile"></div>
+                </div>
+                <div class="form-row">
+                    <div class="fg2"><label>Emergency Contact</label><input type="text" id="awEmergency" placeholder="10-digit mobile"></div>
+                    <div class="fg2"><label>Status</label><select id="awStatus"><option>Active</option><option>Suspended</option></select></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="width:auto;" onclick="closeModal('addWorkerModal')">Cancel</button>
+                <button class="btn btn-primary" style="width:auto;" onclick="saveWorker()">💾 Save Manpower</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addDeptModal">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>➕ Add Department</h3>
+                <button class="close-btn" onclick="closeModal('addDeptModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="fg2"><label>Department Name *</label><input type="text" id="newDeptName" placeholder="e.g., Winding"></div>
+                <div class="fg2">
+                    <label>Has Sub-Machines?</label>
+                    <select id="newDeptHasMachines">
+                        <option value="true">Yes — Will add machines later</option>
+                        <option value="false">No — Use same name as machine</option>
+                    </select>
+                </div>
+                <div class="highlight-box highlight-info" style="font-size:12px;">If "No machines", system auto-creates machine with same name.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="width:auto;" onclick="closeModal('addDeptModal')">Cancel</button>
+                <button class="btn btn-primary" style="width:auto;" onclick="addDepartment()">➕ Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addMachineModal">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>➕ Add Machine</h3>
+                <button class="close-btn" onclick="closeModal('addMachineModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="fg2">
+                    <label>Select Department *</label>
+                    <select id="newMachineDept"><option value="">Select Department</option></select>
+                </div>
+                <div class="fg2"><label>Machine Name *</label><input type="text" id="newMachineName" placeholder="e.g., Winding Machine 1"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="width:auto;" onclick="closeModal('addMachineModal')">Cancel</button>
+                <button class="btn btn-primary" style="width:auto;" onclick="addMachine()">➕ Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addBlackoutModal">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>🔒 Add Blackout Date</h3>
+                <button class="close-btn" onclick="closeModal('addBlackoutModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="fg2"><label>Date *</label><input type="date" id="boDate"></div>
+                <div class="fg2"><label>Description *</label><input type="text" id="boDesc" placeholder="e.g., Peak Production Week"></div>
+                <div class="fg2">
+                    <label>Department Affected</label>
+                    <select id="boDept"><option value="All">All Departments</option></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="width:auto;" onclick="closeModal('addBlackoutModal')">Cancel</button>
+                <button class="btn btn-primary" style="width:auto;" onclick="addBlackout()">🔒 Add Blackout</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============================================================
+// 🔥 YOUR REAL FIREBASE CONFIG
+// ============================================================
+const firebaseConfig = {
+    apiKey: "AIzaSyAwNvD9fpxoSe4mdKpYlBiS7JjAMfsTxZI",
+    authDomain: "factory-hrms-rr.firebaseapp.com",
+    projectId: "factory-hrms-rr",
+    storageBucket: "factory-hrms-rr.firebasestorage.app",
+    messagingSenderId: "845932352609",
+    appId: "1:845932352609:web:fdb346efff591a97f88620"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Set to false to use Firebase. true = demo mode (localStorage)
+const USE_LOCAL_STORAGE = false;
+const CURRENCY = '৳';
+const PAGE_SIZE = 50;
+
+// ============================================================
+// APP STATE
+// ============================================================
+let currentRole = 'admin';
+let currentUser = null;
+let firebaseUser = null;
+let selectedWorkerForLeave = null;
+let csvDataBuffer = [];
+let selectedWorkers = new Set();
+let calendarCurrentDate = new Date();
+
+let departments = [
+    { name: "Enamel", hasMachines: true, machines: ["HEM", "VEM"] },
+    { name: "Wire Drawing", hasMachines: true, machines: ["WD", "RBD"] },
+    { name: "Extrusion", hasMachines: false, machines: ["Extrusion"] },
+    { name: "Paper Covering", hasMachines: false, machines: ["Paper Covering"] },
+    { name: "Cable", hasMachines: true, machines: ["Insulation 1 & 2", "Sheathing 1", "Sheathing 2"] },
+    { name: "Twisting", hasMachines: true, machines: ["Buncher", "Standing 2"] }
+];
+
+let workers = [
+    { code: "PW-001", name: "Forkan Ali", salary: 18500, father: "Mohammad Ali", gender: "Male", dob: "1988-03-15", doj: "2019-06-10", dept: "Enamel", machine: "HEM", designation: "Operator", empType: "Permanent", contact: "9876543210", emergency: "9876543211", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-002", name: "Rahim Khan", salary: 18200, father: "Abdul Khan", gender: "Male", dob: "1990-07-22", doj: "2020-03-15", dept: "Enamel", machine: "HEM", designation: "Operator", empType: "Permanent", contact: "9876543220", emergency: "9876543221", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-003", name: "Salim Sheikh", salary: 17500, father: "Karim Sheikh", gender: "Male", dob: "1985-11-05", doj: "2018-08-20", dept: "Enamel", machine: "HEM", designation: "Helper", empType: "Contract", contact: "9876543230", emergency: "9876543231", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-004", name: "Imran Qureshi", salary: 17800, father: "Javed Qureshi", gender: "Male", dob: "1992-01-18", doj: "2021-02-01", dept: "Enamel", machine: "HEM", designation: "Operator", empType: "Contract", contact: "9876543240", emergency: "9876543241", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-005", name: "Asif Pathan", salary: 17200, father: "Yusuf Pathan", gender: "Male", dob: "1983-09-30", doj: "2017-05-14", dept: "Enamel", machine: "HEM", designation: "Helper", empType: "Daily Wage", contact: "9876543250", emergency: "9876543251", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-006", name: "Mukesh Sharma", salary: 18500, father: "Ramesh Sharma", gender: "Male", dob: "1987-04-12", doj: "2019-09-10", dept: "Enamel", machine: "VEM", designation: "Operator", empType: "Permanent", contact: "9876543260", emergency: "9876543261", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-007", name: "Rajesh Patel", salary: 18200, father: "Mahesh Patel", gender: "Male", dob: "1989-06-25", doj: "2020-01-20", dept: "Enamel", machine: "VEM", designation: "Operator", empType: "Permanent", contact: "9876543270", emergency: "9876543271", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-008", name: "Sunil Yadav", salary: 17500, father: "Mohan Yadav", gender: "Male", dob: "1991-08-14", doj: "2021-04-05", dept: "Enamel", machine: "VEM", designation: "Helper", empType: "Contract", contact: "9876543280", emergency: "9876543281", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-009", name: "Suresh Yadav", salary: 16800, father: "Raghav Yadav", gender: "Male", dob: "1986-02-28", doj: "2018-11-12", dept: "Wire Drawing", machine: "WD", designation: "Operator", empType: "Permanent", contact: "9876543290", emergency: "9876543291", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-010", name: "Amit Patel", salary: 16500, father: "Dinesh Patel", gender: "Male", dob: "1990-10-10", doj: "2020-07-18", dept: "Wire Drawing", machine: "WD", designation: "Operator", empType: "Contract", contact: "9876543300", emergency: "9876543301", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-011", name: "Vikram Singh", salary: 16200, father: "Karan Singh", gender: "Male", dob: "1993-05-22", doj: "2022-03-01", dept: "Wire Drawing", machine: "WD", designation: "Helper", empType: "Daily Wage", contact: "9876543310", emergency: "9876543311", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-012", name: "Deepak Joshi", salary: 17000, father: "Prakash Joshi", gender: "Male", dob: "1984-12-08", doj: "2017-09-15", dept: "Wire Drawing", machine: "RBD", designation: "Operator", empType: "Permanent", contact: "9876543320", emergency: "9876543321", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-013", name: "Sanjay Rao", salary: 16800, father: "Venkata Rao", gender: "Male", dob: "1988-03-20", doj: "2019-04-22", dept: "Wire Drawing", machine: "RBD", designation: "Operator", empType: "Contract", contact: "9876543330", emergency: "9876543331", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Suspended" },
+    { code: "PW-014", name: "Rohit Mehta", salary: 16200, father: "Suresh Mehta", gender: "Male", dob: "1995-07-05", doj: "2023-01-10", dept: "Wire Drawing", machine: "RBD", designation: "Helper", empType: "Daily Wage", contact: "9876543340", emergency: "9876543341", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-015", name: "Mahesh Verma", salary: 19000, father: "Ganesh Verma", gender: "Male", dob: "1982-09-18", doj: "2016-03-25", dept: "Extrusion", machine: "Extrusion", designation: "Supervisor", empType: "Permanent", contact: "9876543350", emergency: "9876543351", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-016", name: "Anil Kumar", salary: 17500, father: "Ram Kumar", gender: "Male", dob: "1987-01-30", doj: "2019-08-12", dept: "Extrusion", machine: "Extrusion", designation: "Operator", empType: "Permanent", contact: "9876543360", emergency: "9876543361", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-017", name: "Ravi Prakash", salary: 17200, father: "Shyam Prakash", gender: "Male", dob: "1990-11-14", doj: "2020-06-20", dept: "Extrusion", machine: "Extrusion", designation: "Operator", empType: "Contract", contact: "9876543370", emergency: "9876543371", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-018", name: "Neha Gupta", salary: 18500, father: "Rakesh Gupta", gender: "Female", dob: "1989-04-25", doj: "2019-12-01", dept: "Paper Covering", machine: "Paper Covering", designation: "Supervisor", empType: "Permanent", contact: "9876543380", emergency: "9876543381", shiftCycle: "General", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-019", name: "Pooja Sharma", salary: 17000, father: "Vijay Sharma", gender: "Female", dob: "1992-08-08", doj: "2021-05-15", dept: "Paper Covering", machine: "Paper Covering", designation: "Operator", empType: "Permanent", contact: "9876543390", emergency: "9876543391", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-020", name: "Sunita Devi", salary: 16800, father: "Mahesh Devi", gender: "Female", dob: "1994-02-12", doj: "2022-09-01", dept: "Paper Covering", machine: "Paper Covering", designation: "Helper", empType: "Contract", contact: "9876543400", emergency: "9876543401", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-021", name: "Arun Mishra", salary: 18000, father: "Mohan Mishra", gender: "Male", dob: "1985-06-20", doj: "2018-02-14", dept: "Cable", machine: "Insulation 1 & 2", designation: "Operator", empType: "Permanent", contact: "9876543410", emergency: "9876543411", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-022", name: "Kiran Shah", salary: 17800, father: "Niranjan Shah", gender: "Male", dob: "1988-10-05", doj: "2019-10-22", dept: "Cable", machine: "Insulation 1 & 2", designation: "Operator", empType: "Permanent", contact: "9876543420", emergency: "9876543421", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-023", name: "Manoj Tiwari", salary: 17200, father: "Satish Tiwari", gender: "Male", dob: "1991-03-18", doj: "2021-01-08", dept: "Cable", machine: "Insulation 1 & 2", designation: "Helper", empType: "Contract", contact: "9876543430", emergency: "9876543431", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-024", name: "Dinesh Rawat", salary: 17500, father: "Ramesh Rawat", gender: "Male", dob: "1986-07-30", doj: "2018-06-18", dept: "Cable", machine: "Sheathing 1", designation: "Operator", empType: "Permanent", contact: "9876543440", emergency: "9876543441", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-025", name: "Gopal Sethi", salary: 17200, father: "Kishan Sethi", gender: "Male", dob: "1989-09-12", doj: "2020-04-25", dept: "Cable", machine: "Sheathing 1", designation: "Operator", empType: "Contract", contact: "9876543450", emergency: "9876543451", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-026", name: "Hari Om", salary: 17500, father: "Shiv Om", gender: "Male", dob: "1984-11-22", doj: "2017-07-10", dept: "Cable", machine: "Sheathing 2", designation: "Operator", empType: "Permanent", contact: "9876543460", emergency: "9876543461", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-027", name: "Jatin Arora", salary: 17200, father: "Nitin Arora", gender: "Male", dob: "1990-05-08", doj: "2020-11-15", dept: "Cable", machine: "Sheathing 2", designation: "Helper", empType: "Daily Wage", contact: "9876543470", emergency: "9876543471", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-028", name: "Lalit Chauhan", salary: 17800, father: "Mukesh Chauhan", gender: "Male", dob: "1983-08-16", doj: "2016-09-05", dept: "Twisting", machine: "Buncher", designation: "Operator", empType: "Permanent", contact: "9876543480", emergency: "9876543481", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-029", name: "Naveen Solanki", salary: 17500, father: "Praveen Solanki", gender: "Male", dob: "1987-12-01", doj: "2019-03-20", dept: "Twisting", machine: "Buncher", designation: "Operator", empType: "Contract", contact: "9876543490", emergency: "9876543491", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-030", name: "Om Prakash", salary: 17200, father: "Jai Prakash", gender: "Male", dob: "1992-04-14", doj: "2021-08-12", dept: "Twisting", machine: "Standing 2", designation: "Operator", empType: "Permanent", contact: "9876543500", emergency: "9876543501", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-031", name: "Pradeep Mali", salary: 16800, father: "Ramesh Mali", gender: "Male", dob: "1994-10-28", doj: "2023-02-01", dept: "Twisting", machine: "Standing 2", designation: "Helper", empType: "Daily Wage", contact: "9876543510", emergency: "9876543511", shiftCycle: "DayNight", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-032", name: "Qadir Ansari", salary: 22000, father: "", gender: "Male", dob: "1980-01-10", doj: "2015-05-01", dept: "Enamel", machine: "HEM", designation: "Shift Incharge", empType: "Permanent", contact: "9876543520", emergency: "9876543521", shiftCycle: "General", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-033", name: "Ramesh Iyer", salary: 25000, father: "", gender: "Male", dob: "1978-06-15", doj: "2014-01-10", dept: "Cable", machine: "Insulation 1 & 2", designation: "Shift Incharge", empType: "Permanent", contact: "9876543530", emergency: "9876543531", shiftCycle: "General", cycleStart: "2026-01-06", status: "Active" },
+    { code: "PW-034", name: "Sita Raman", salary: 35000, father: "", gender: "Male", dob: "1975-09-20", doj: "2010-03-15", dept: "Enamel", machine: "HEM", designation: "Manager", empType: "Permanent", contact: "9876543540", emergency: "9876543541", shiftCycle: "General", cycleStart: "2026-01-06", status: "Active" }
+];
+
+let leaveApplications = [
+    { id: "LA-001", code: "PW-001", name: "Forkan Ali", dept: "Enamel", machine: "HEM", type: "CL", from: "2026-04-28", to: "2026-04-29", days: 2, reason: "Personal work", status: "Pending", approvedBy: "", appliedBy: "Shift Incharge", shift: "Night" },
+    { id: "LA-002", code: "PW-002", name: "Rahim Khan", dept: "Enamel", machine: "VEM", type: "SL", from: "2026-04-27", to: "2026-04-29", days: 3, reason: "Fever", status: "Pending", approvedBy: "", appliedBy: "Shift Incharge", shift: "Night" },
+    { id: "LA-003", code: "PW-010", name: "Amit Patel", dept: "Wire Drawing", machine: "WD", type: "EL", from: "2026-04-30", to: "2026-05-04", days: 5, reason: "Family function", status: "Pending", approvedBy: "", appliedBy: "Admin", shift: "Night" }
+];
+
+let leaveBalances = {};
+workers.forEach(w => {
+    leaveBalances[w.code] = { CL: 10, SL: 14, EL: 15, LWP: 0, usedCL: 2, usedSL: 0, usedEL: 0, usedLWP: 0 };
+});
+
+let blackoutDates = [
+    { date: "2026-05-01", desc: "Labour Day - Peak Production", dept: "All" },
+    { date: "2026-05-15", desc: "Urgent Order Delivery", dept: "Enamel" }
+];
+
+// ============================================================
+// NAVIGATION CONFIG
+// ============================================================
+const navConfig = {
+    admin: [
+        { icon: '📊', label: 'Dashboard', page: 'dashboard' },
+        { icon: '🏢', label: 'Departments', page: 'departments' },
+        { icon: '👷', label: 'Manpower Master', page: 'workers' },
+        { icon: '📝', label: 'Apply Leave', page: 'leaveApply' },
+        { icon: '✅', label: 'Approve Leave', page: 'leaveApprove' },
+        { icon: '🗓️', label: 'Leave Calendar', page: 'calendar' },
+        { icon: '🔒', label: 'Blackout Dates', page: 'blackout' },
+        { icon: '⏳', label: 'Pending Users', page: 'pendingUsers' },
+        { icon: '⚙️', label: 'Settings', page: 'settings' }
+    ],
+    incharge: [
+        { icon: '📊', label: 'Dashboard', page: 'dashboard' },
+        { icon: '📝', label: 'Apply Leave', page: 'leaveApply' },
+        { icon: '✅', label: 'Approve Leave', page: 'leaveApprove' },
+        { icon: '🗓️', label: 'Leave Calendar', page: 'calendar' }
+    ],
+    operator: [
+        { icon: '📊', label: 'Dashboard', page: 'dashboard' },
+        { icon: '📋', label: 'Dept Leave Details', page: 'deptLeaveDetails' }
+    ]
+};
+
+// ============================================================
+// AUTH - LOGIN / SIGN UP / FORGOT PASSWORD (FIREBASE)
+// ============================================================
+function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+    document.getElementById('forgotForm').style.display = 'none';
+}
+
+function showForgotPassword() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('signupForm').style.display = 'none';
+    document.getElementById('forgotForm').style.display = 'block';
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+}
+
+function showLoginForm() {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('signupForm').style.display = 'none';
+    document.getElementById('forgotForm').style.display = 'none';
+    document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+}
+
+function backToLogin() {
+    document.getElementById('pendingScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+}
+
+async function doSignUp() {
+    const name = document.getElementById('suName').value.trim();
+    const email = document.getElementById('suEmail').value.trim().toLowerCase();
+    const password = document.getElementById('suPassword').value;
+    const dept = document.getElementById('suDept').value;
+    const role = document.getElementById('suRole').value;
+
+    if (!name || !email || !password || !dept || !role) {
+        showToast('Fill all required fields'); return;
+    }
+    if (password.length < 6) { showToast('Password must be at least 6 characters'); return; }
+
+    const btn = document.getElementById('signupBtn');
+    btn.innerHTML = '<span class="loading"></span> Creating account...';
+    btn.disabled = true;
+
+    try {
+        // Check if any approved admin exists in Firestore
+        const usersSnapshot = await db.collection('users').where('status', '==', 'approved').get();
+        const isFirstUser = usersSnapshot.empty;
+
+        // Create user in Firebase Auth
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const firebaseUser = userCredential.user;
+
+        // Store user profile in Firestore
+        const userData = {
+            uid: firebaseUser.uid,
+            email: email,
+            name: name,
+            dept: dept,
+            role: isFirstUser ? 'admin' : role,
+            status: isFirstUser ? 'approved' : 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('users').doc(firebaseUser.uid).set(userData);
+
+        if (isFirstUser) {
+            showToast('🎉 You are the first user! Auto-approved as Admin.');
+            setTimeout(() => {
+                document.getElementById('loginEmail').value = email;
+                document.getElementById('loginPassword').value = password;
+                switchAuthTab('login');
+                showLoginForm();
+            }, 1500);
+        } else {
+            document.getElementById('pendingName').textContent = name;
+            document.getElementById('pendingEmail').textContent = email;
+            document.getElementById('pendingRole').textContent = role === 'incharge' ? 'Shift Incharge' : 'Operator';
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('pendingScreen').style.display = 'flex';
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    } finally {
+        btn.innerHTML = '📝 Sign Up';
+        btn.disabled = false;
+    }
+}
+
+async function sendResetLink() {
+    const email = document.getElementById('fpEmail').value.trim();
+    if (!email) { showToast('Enter your email'); return; }
+
+    try {
+        await auth.sendPasswordResetEmail(email);
+        showToast('Password reset link sent to ' + email);
+        showLoginForm();
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value;
+
+    if (!email || !password) { showToast('Enter email and password'); return; }
+
+    const btn = document.getElementById('loginBtn');
+    btn.innerHTML = '<span class="loading"></span> Logging in...';
+    btn.disabled = true;
+
+    try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        firebaseUser = userCredential.user;
+
+        // Get user profile from Firestore
+        const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
+
+        if (!userDoc.exists) {
+            showToast('User profile not found. Contact admin.');
+            btn.innerHTML = '🔐 Login';
+            btn.disabled = false;
+            return;
+        }
+
+        const userData = userDoc.data();
+
+        if (userData.status === 'pending') {
+            showToast('Your account is pending admin approval');
+            btn.innerHTML = '🔐 Login';
+            btn.disabled = false;
+            return;
+        }
+
+        currentRole = userData.role;
+        currentUser = userData;
+
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').classList.add('active');
+
+        const roleNames = { admin: 'Admin', incharge: 'Shift Incharge', operator: 'Operator' };
+        const roleClasses = { admin: 'role-admin', incharge: 'role-incharge', operator: 'role-operator' };
+        const avatars = { admin: 'A', incharge: 'S', operator: 'O' };
+
+        document.getElementById('sidebarRoleText').textContent = roleNames[currentRole] + ' Access';
+        document.getElementById('topRoleTag').textContent = roleNames[currentRole];
+        document.getElementById('topRoleTag').className = 'role-tag ' + roleClasses[currentRole];
+        document.getElementById('userAvatar').textContent = avatars[currentRole];
+        document.getElementById('userName').textContent = userData.name;
+
+        const navMenu = document.getElementById('navMenu');
+        navMenu.innerHTML = '';
+        navConfig[currentRole].forEach((item, idx) => {
+            const li = document.createElement('li');
+            li.className = 'nav-item' + (idx === 0 ? ' active' : '');
+            li.onclick = function() { showPage(item.page, this); };
+            li.innerHTML = `<span class="icon">${item.icon}</span> ${item.label}`;
+            navMenu.appendChild(li);
+        });
+
+        showPage(navConfig[currentRole][0].page, navMenu.querySelector('.nav-item'));
+
+        // Load data from Firestore
+        await loadDataFromFirestore();
+
+    } catch (error) {
+        showToast('Login failed: ' + error.message);
+    } finally {
+        btn.innerHTML = '🔐 Login';
+        btn.disabled = false;
+    }
+}
+
+function logout() {
+    auth.signOut().then(() => {
+        location.reload();
+    });
+}
+
+// ============================================================
+// FIRESTORE DATA OPERATIONS
+// ============================================================
+async function saveDataToFirestore() {
+    if (USE_LOCAL_STORAGE) return;
+    if (!firebaseUser) return;
+
+    try {
+        const batch = db.batch();
+
+        // Save workers
+        const workersRef = db.collection('data').doc('workers');
+        batch.set(workersRef, { data: workers, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+        // Save departments
+        const deptsRef = db.collection('data').doc('departments');
+        batch.set(deptsRef, { data: departments, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+        // Save leave applications
+        const leaveRef = db.collection('data').doc('leaveApplications');
+        batch.set(leaveRef, { data: leaveApplications, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+        // Save leave balances
+        const balRef = db.collection('data').doc('leaveBalances');
+        batch.set(balRef, { data: leaveBalances, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+        // Save blackout dates
+        const boRef = db.collection('data').doc('blackoutDates');
+        batch.set(boRef, { data: blackoutDates, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+        await batch.commit();
+        console.log('Data saved to Firestore');
+    } catch (error) {
+        console.error('Save error:', error);
+        showToast('Save failed: ' + error.message);
+    }
+}
+
+async function loadDataFromFirestore() {
+    if (USE_LOCAL_STORAGE) return;
+    if (!firebaseUser) return;
+
+    try {
+        const workersDoc = await db.collection('data').doc('workers').get();
+        if (workersDoc.exists && workersDoc.data().data) {
+            workers = workersDoc.data().data;
+        }
+
+        const deptsDoc = await db.collection('data').doc('departments').get();
+        if (deptsDoc.exists && deptsDoc.data().data) {
+            departments = deptsDoc.data().data;
+        }
+
+        const leaveDoc = await db.collection('data').doc('leaveApplications').get();
+        if (leaveDoc.exists && leaveDoc.data().data) {
+            leaveApplications = leaveDoc.data().data;
+        }
+
+        const balDoc = await db.collection('data').doc('leaveBalances').get();
+        if (balDoc.exists && balDoc.data().data) {
+            leaveBalances = balDoc.data().data;
+        }
+
+        const boDoc = await db.collection('data').doc('blackoutDates').get();
+        if (boDoc.exists && boDoc.data().data) {
+            blackoutDates = boDoc.data().data;
+        }
+
+        // Refresh current page
+        const activePage = document.querySelector('.page-section.active');
+        if (activePage) {
+            const pageId = activePage.id;
+            if (pageId === 'dashboard') renderDashboard();
+            if (pageId === 'workers') renderWorkers();
+            if (pageId === 'leaveApprove') renderPendingLeave();
+            if (pageId === 'calendar') renderCalendar();
+        }
+
+        showToast('Data loaded from Firebase');
+    } catch (error) {
+        console.error('Load error:', error);
+        showToast('Using default data. Save will sync to Firebase.');
+    }
+}
+
+function saveData() {
+    if (USE_LOCAL_STORAGE) {
+        localStorage.setItem('factory_hrms_workers', JSON.stringify(workers));
+        localStorage.setItem('factory_hrms_departments', JSON.stringify(departments));
+        localStorage.setItem('factory_hrms_leaveApps', JSON.stringify(leaveApplications));
+        localStorage.setItem('factory_hrms_leaveBal', JSON.stringify(leaveBalances));
+        localStorage.setItem('factory_hrms_blackout', JSON.stringify(blackoutDates));
+    } else {
+        saveDataToFirestore();
+    }
+}
+
+function loadData() {
+    if (USE_LOCAL_STORAGE) {
+        const w = localStorage.getItem('factory_hrms_workers');
+        const d = localStorage.getItem('factory_hrms_departments');
+        const l = localStorage.getItem('factory_hrms_leaveApps');
+        const b = localStorage.getItem('factory_hrms_leaveBal');
+        const bo = localStorage.getItem('factory_hrms_blackout');
+        if (w) workers = JSON.parse(w);
+        if (d) departments = JSON.parse(d);
+        if (l) leaveApplications = JSON.parse(l);
+        if (b) leaveBalances = JSON.parse(b);
+        if (bo) blackoutDates = JSON.parse(bo);
+    }
+}
+
+// ============================================================
+// SHIFT CALCULATION
+// ============================================================
+function getCurrentShift(cycleStartStr, cycleType) {
+    if (cycleType === 'General') return 'General';
+    const start = new Date(cycleStartStr);
+    const today = new Date();
+    const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+    const weekNum = Math.floor(diffDays / 7);
+    return weekNum % 2 === 0 ? 'Day' : 'Night';
+}
+
+function getShiftBadge(shift) {
+    const classes = { Day: 'shift-day', Night: 'shift-night', General: 'shift-general' };
+    return `<span class="shift-badge ${classes[shift] || 'shift-day'}">${shift}</span>`;
+}
+
+// ============================================================
+// PAGE NAVIGATION
+// ============================================================
+function showPage(pageId, navEl) {
+    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+    const page = document.getElementById(pageId);
+    if (page) page.classList.add('active');
+
+    if (navEl) {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        navEl.classList.add('active');
+    }
+
+    const titles = {
+        dashboard: 'Dashboard', departments: 'Department & Machine Master',
+        workers: 'Manpower Master', leaveApply: 'Apply Leave for Manpower',
+        leaveApprove: 'Leave Approvals', calendar: 'Leave Calendar',
+        blackout: 'Blackout Dates', pendingUsers: 'Pending User Approvals',
+        deptLeaveDetails: 'Department Leave Details', settings: 'Settings'
+    };
+    document.getElementById('pageTitle').textContent = titles[pageId] || 'Dashboard';
+
+    if (pageId === 'dashboard') renderDashboard();
+    if (pageId === 'departments') renderDepartments();
+    if (pageId === 'workers') { renderWorkers(); updateDeptFilter(); }
+    if (pageId === 'leaveApply') setupLeaveApply();
+    if (pageId === 'leaveApprove') renderPendingLeave();
+    if (pageId === 'calendar') renderCalendar();
+    if (pageId === 'blackout') renderBlackoutList();
+    if (pageId === 'pendingUsers') renderPendingUsers();
+    if (pageId === 'deptLeaveDetails') renderDeptLeaveDetails();
+
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+function switchTab(tabEl, contentId) {
+    const parent = tabEl.parentElement;
+    parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tabEl.classList.add('active');
+
+    const container = parent.parentElement;
+    container.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    const target = document.getElementById(contentId);
+    if (target) target.style.display = 'block';
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+    const today = new Date();
+    document.getElementById('dashboardDate').textContent = today.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    document.getElementById('statTotalWorkers').textContent = workers.length;
+    document.getElementById('statActiveWorkers').textContent = workers.filter(w => w.status === 'Active').length;
+    document.getElementById('statPendingLeave').textContent = leaveApplications.filter(l => l.status === 'Pending').length;
+
+    const sampleWorker = workers[0];
+    const currentShift = getCurrentShift(sampleWorker.cycleStart, sampleWorker.shiftCycle);
+    document.getElementById('statCurrentShift').textContent = currentShift;
+    document.getElementById('currentShiftText').textContent = currentShift + ' Shift (This Week)';
+
+    let html = '<table class="data-table"><thead><tr><th>Department</th><th>Machine</th><th>Total</th><th>Active</th><th>Status</th></tr></thead><tbody>';
+
+    departments.forEach(dept => {
+        if (dept.name === 'Enamel') {
+            const deptWorkers = workers.filter(w => w.dept === 'Enamel');
+            const active = deptWorkers.filter(w => w.status === 'Active').length;
+            html += `<tr style="background:#ebf5fb;"><td colspan="5" style="font-weight:bold;color:var(--primary);">🏭 ${dept.name} (All manpower under Department)</td></tr>`;
+            html += `<tr><td>${dept.name}</td><td><span style="color:#999;font-size:11px;">All Machines</span></td><td>${deptWorkers.length}</td><td>${active}</td><td><span class="status-badge status-active">Normal</span></td></tr>`;
+        } else {
+            html += `<tr style="background:#f0f0f0;"><td colspan="5" style="height:6px;padding:0;"></td></tr>`;
+            html += `<tr style="background:${dept.name === 'Extrusion' || dept.name === 'Paper Covering' ? '#fef9e7' : '#eafaf1'};"><td colspan="5" style="font-weight:bold;">${dept.name}${!dept.hasMachines ? ' (No sub-machines)' : ''}</td></tr>`;
+            dept.machines.forEach(m => {
+                const mWorkers = workers.filter(w => w.dept === dept.name && w.machine === m);
+                const active = mWorkers.filter(w => w.status === 'Active').length;
+                html += `<tr><td>${dept.name}</td><td>${m}</td><td>${mWorkers.length}</td><td>${active}</td><td><span class="status-badge status-active">Normal</span></td></tr>`;
+            });
+        }
+    });
+    html += '</tbody></table>';
+    document.getElementById('deptSummaryTable').innerHTML = html;
+}
+
+// ============================================================
+// DEPARTMENTS
+// ============================================================
+function renderDepartments() {
+    let html = '<div class="dept-tree">';
+    departments.forEach(dept => {
+        const deptWorkerCount = workers.filter(w => w.dept === dept.name).length;
+        html += `<div class="dept-item dept"><span>🏭</span> ${dept.name}<span class="dept-count">${deptWorkerCount} Manpower</span><div class="dept-actions"><button class="btn btn-sm btn-outline" onclick="editDept('${dept.name}')">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteDept('${dept.name}')">🗑️</button></div></div>`;
+
+        if (dept.name === 'Enamel') {
+            html += `<div style="padding:8px 20px;font-size:12px;color:#7f8c8d;background:#f8f9fa;margin:0 0 5px 25px;border-radius:0 0 6px 6px;">👥 All ${deptWorkerCount} manpower displayed under Enamel</div>`;
+        }
+
+        dept.machines.forEach(m => {
+            const mCount = workers.filter(w => w.dept === dept.name && w.machine === m).length;
+            html += `<div class="dept-item machine"><span>⚙️</span> ${m}${!dept.hasMachines ? ' <span style="font-size:11px;color:#999;">(same as dept)</span>' : ''}<span class="dept-count">${mCount} Manpower</span><div class="dept-actions"><button class="btn btn-sm btn-outline" onclick="editMachine('${dept.name}','${m}')">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteMachine('${dept.name}','${m}')">🗑️</button></div></div>`;
+        });
+    });
+    html += '</div>';
+    document.getElementById('deptTreeContainer').innerHTML = html;
+}
+
+function addDepartment() {
+    const name = document.getElementById('newDeptName').value.trim();
+    const hasMachines = document.getElementById('newDeptHasMachines').value === 'true';
+    if (!name) { showToast('Enter department name'); return; }
+    if (departments.find(d => d.name === name)) { showToast('Department already exists'); return; }
+
+    departments.push({ name, hasMachines, machines: hasMachines ? [] : [name] });
+    saveData();
+    renderDepartments();
+    closeModal('addDeptModal');
+    showToast('Department added: ' + name);
+}
+
+function addMachine() {
+    const deptName = document.getElementById('newMachineDept').value;
+    const machineName = document.getElementById('newMachineName').value.trim();
+    if (!deptName || !machineName) { showToast('Fill all fields'); return; }
+
+    const dept = departments.find(d => d.name === deptName);
+    if (dept) {
+        if (dept.machines.includes(machineName)) { showToast('Machine already exists'); return; }
+        dept.machines.push(machineName);
+        dept.hasMachines = true;
+        saveData();
+        renderDepartments();
+        closeModal('addMachineModal');
+        showToast('Machine added: ' + machineName);
+    }
+}
+
+function deleteDept(name) {
+    const hasWorkers = workers.some(w => w.dept === name);
+    if (hasWorkers) { showToast('Cannot delete: manpower assigned'); return; }
+    if (!confirm('Delete department "' + name + '"?')) return;
+    departments = departments.filter(d => d.name !== name);
+    saveData();
+    renderDepartments();
+    showToast('Department deleted');
+}
+
+function deleteMachine(deptName, machineName) {
+    const hasWorkers = workers.some(w => w.dept === deptName && w.machine === machineName);
+    if (hasWorkers) { showToast('Cannot delete: manpower assigned'); return; }
+    if (!confirm('Delete machine "' + machineName + '"?')) return;
+    const dept = departments.find(d => d.name === deptName);
+    if (dept) {
+        dept.machines = dept.machines.filter(m => m !== machineName);
+        saveData();
+        renderDepartments();
+        showToast('Machine deleted');
+    }
+}
+
+function editDept(name) { showToast('Edit feature in next session'); }
+function editMachine(dept, machine) { showToast('Edit feature in next session'); }
+
+// ============================================================
+// MANPOWER MASTER WITH BULK SELECT
+// ============================================================
+let filteredWorkers = [];
+let currentPage = 1;
+
+function renderWorkers() {
+    const search = document.getElementById('workerSearch').value.toLowerCase();
+    const deptFilter = document.getElementById('filterDept').value;
+    const shiftFilter = document.getElementById('filterShift').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+
+    filteredWorkers = workers.filter(w => {
+        const matchesSearch = !search || w.name.toLowerCase().includes(search) || w.code.toLowerCase().includes(search);
+        const matchesDept = !deptFilter || w.dept === deptFilter;
+        const matchesShift = !shiftFilter || getCurrentShift(w.cycleStart, w.shiftCycle) === shiftFilter;
+        const matchesStatus = !statusFilter || w.status === statusFilter;
+        return matchesSearch && matchesDept && matchesShift && matchesStatus;
+    });
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageWorkers = filteredWorkers.slice(start, start + PAGE_SIZE);
+
+    let html = '';
+    if (pageWorkers.length === 0) {
+        html = '<tr><td colspan="11"><div class="empty-state"><div class="icon">📭</div><p>No manpower found</p></div></td></tr>';
+    } else {
+        pageWorkers.forEach(w => {
+            const shift = getCurrentShift(w.cycleStart, w.shiftCycle);
+            const isSelected = selectedWorkers.has(w.code);
+            html += `<tr>
+                <td><input type="checkbox" class="worker-checkbox" data-code="${w.code}" ${isSelected ? 'checked' : ''} onchange="toggleWorkerSelect('${w.code}')"></td>
+                <td><strong>${w.code}</strong></td>
+                <td>${w.name}</td>
+                <td>${CURRENCY}${parseInt(w.salary).toLocaleString('en-IN')}</td>
+                <td>${w.dept}</td>
+                <td>${w.machine}</td>
+                <td>${w.designation}</td>
+                <td>${getShiftBadge(shift)}</td>
+                <td>${w.empType}</td>
+                <td><span class="status-badge ${w.status === 'Active' ? 'status-active' : 'status-suspended'}">${w.status}</span></td>
+                <td><button class="btn btn-sm btn-outline" onclick="editWorker('${w.code}')">✏️</button></td>
+            </tr>`;
+        });
+    }
+    document.getElementById('workerTableBody').innerHTML = html;
+
+    const bulkBar = document.getElementById('bulkBar');
+    if (selectedWorkers.size > 0) {
+        bulkBar.style.display = 'flex';
+        document.getElementById('selectedCount').textContent = selectedWorkers.size + ' selected';
+    } else {
+        bulkBar.style.display = 'none';
+    }
+
+    const totalPages = Math.ceil(filteredWorkers.length / PAGE_SIZE);
+    let pgHtml = `<span style="font-size:12px;color:#7f8c8d;">Showing ${start + 1}-${Math.min(start + PAGE_SIZE, filteredWorkers.length)} of ${filteredWorkers.length}</span>`;
+    pgHtml += '<div style="display:flex;gap:4px;">';
+    pgHtml += `<button class="btn btn-sm btn-outline" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        pgHtml += `<button class="btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-outline'}" onclick="changePage(${i})">${i}</button>`;
+    }
+    pgHtml += `<button class="btn btn-sm btn-outline" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+    pgHtml += '</div>';
+    document.getElementById('workerPagination').innerHTML = pgHtml;
+}
+
+function toggleWorkerSelect(code) {
+    if (selectedWorkers.has(code)) {
+        selectedWorkers.delete(code);
+    } else {
+        selectedWorkers.add(code);
+    }
+    renderWorkers();
+}
+
+function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('.worker-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+    checkboxes.forEach(cb => {
+        const code = cb.getAttribute('data-code');
+        if (allChecked) {
+            selectedWorkers.delete(code);
+            cb.checked = false;
+        } else {
+            selectedWorkers.add(code);
+            cb.checked = true;
+        }
+    });
+
+    document.getElementById('selectAllHeader').checked = !allChecked;
+    document.getElementById('selectAllBulk').checked = !allChecked;
+    renderWorkers();
+}
+
+function bulkDelete() {
+    if (selectedWorkers.size === 0) { showToast('No manpower selected'); return; }
+    if (!confirm('Delete ' + selectedWorkers.size + ' manpower? This cannot be undone.')) return;
+
+    workers = workers.filter(w => !selectedWorkers.has(w.code));
+    selectedWorkers.clear();
+    saveData();
+    renderWorkers();
+    showToast('Deleted successfully');
+}
+
+function changePage(p) {
+    const totalPages = Math.ceil(filteredWorkers.length / PAGE_SIZE);
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    renderWorkers();
+}
+
+function filterWorkers() { currentPage = 1; renderWorkers(); }
+
+function updateDeptFilter() {
+    const select = document.getElementById('filterDept');
+    const newMachineDept = document.getElementById('newMachineDept');
+    const boDept = document.getElementById('boDept');
+    const calDept = document.getElementById('calDept');
+    const awDept = document.getElementById('awDept');
+
+    [select, newMachineDept, boDept, calDept, awDept].forEach(el => {
+        if (!el) return;
+        const currentVal = el.value;
+        const existing = el.querySelectorAll('option:not([value=""]):not([value="All"])');
+        existing.forEach(o => o.remove());
+        departments.forEach(d => {
+            el.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+        });
+        el.value = currentVal;
+    });
+}
+
+function updateMachineDropdown() {
+    const deptName = document.getElementById('awDept').value;
+    const machineSelect = document.getElementById('awMachine');
+    machineSelect.innerHTML = '<option value="">Select Machine</option>';
+
+    if (deptName) {
+        const dept = departments.find(d => d.name === deptName);
+        if (dept) {
+            dept.machines.forEach(m => {
+                machineSelect.innerHTML += `<option value="${m}">${m}</option>`;
+            });
+        }
+    }
+}
+
+function saveWorker() {
+    const code = document.getElementById('awCode').value.trim();
+    const name = document.getElementById('awName').value.trim();
+    const salary = document.getElementById('awSalary').value;
+    const doj = document.getElementById('awDOJ').value;
+    const dept = document.getElementById('awDept').value;
+    const machine = document.getElementById('awMachine').value;
+    const designation = document.getElementById('awDesig').value.trim();
+    const empType = document.getElementById('awType').value;
+    const shiftCycle = document.getElementById('awShiftCycle').value;
+    const cycleStart = document.getElementById('awCycleStart').value;
+
+    if (!code || !name || !salary || !doj || !dept || !machine || !designation || !cycleStart) {
+        showToast('Fill all required fields'); return;
+    }
+    if (workers.find(w => w.code === code)) {
+        showToast('Manpower code already exists'); return;
+    }
+
+    workers.push({
+        code, name, salary: parseInt(salary), father: document.getElementById('awFather').value,
+        gender: document.getElementById('awGender').value, dob: document.getElementById('awDOB').value,
+        doj, dept, machine, designation, empType,
+        contact: document.getElementById('awContact').value,
+        emergency: document.getElementById('awEmergency').value,
+        shiftCycle, cycleStart, status: document.getElementById('awStatus').value
+    });
+
+    leaveBalances[code] = { CL: 10, SL: 14, EL: 15, LWP: 0, usedCL: 0, usedSL: 0, usedEL: 0, usedLWP: 0 };
+
+    saveData();
+    renderWorkers();
+    closeModal('addWorkerModal');
+    showToast('Manpower added: ' + name);
+    clearWorkerForm();
+}
+
+function clearWorkerForm() {
+    ['awCode','awName','awSalary','awFather','awDOB','awDOJ','awDesig','awContact','awEmergency','awCycleStart'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('awDept').value = '';
+    document.getElementById('awMachine').innerHTML = '<option value="">Select Machine</option>';
+}
+
+function editWorker(code) {
+    showToast('Edit manpower: ' + code + ' (next session)');
+}
+
+// ============================================================
+// CSV UPLOAD
+// ============================================================
+function handleCSVUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(l => l.trim());
+        const headers = lines[0].split(',').map(h => h.trim());
+
+        csvDataBuffer = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values.length < 11) continue;
+            const row = {};
+            headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+            csvDataBuffer.push(row);
+        }
+
+        document.getElementById('csvPreview').innerHTML = `
+            <div class="highlight-box highlight-success">
+                <strong>✅ ${csvDataBuffer.length} manpower found in CSV</strong><br>
+                <span style="font-size:11px;">Click "Confirm Upload" to add them.</span>
+            </div>
+            <table class="data-table" style="margin-top:8px;">
+                <thead><tr><th>Code</th><th>Name</th><th>Dept</th><th>Machine</th><th>Salary</th></tr></thead>
+                <tbody>
+                    ${csvDataBuffer.slice(0, 5).map(r => `<tr><td>${r.Employee_Code || '-'}</td><td>${r.Full_Name || '-'}</td><td>${r.Department || '-'}</td><td>${r.Machine || '-'}</td><td>${CURRENCY}${r.Current_Salary || '0'}</td></tr>`).join('')}
+                    ${csvDataBuffer.length > 5 ? `<tr><td colspan="5" style="text-align:center;color:#7f8c8d;">... and ${csvDataBuffer.length - 5} more</td></tr>` : ''}
+                </tbody>
+            </table>
+        `;
+        document.getElementById('csvConfirmBtn').disabled = false;
+    };
+    reader.readAsText(file);
+}
+
+function confirmCSVUpload() {
+    let added = 0, skipped = 0;
+    csvDataBuffer.forEach(row => {
+        const code = row.Employee_Code;
+        if (!code || workers.find(w => w.code === code)) { skipped++; return; }
+
+        workers.push({
+            code: code, name: row.Full_Name || '', salary: parseInt(row.Current_Salary) || 0,
+            father: row.Father_Name || '', gender: row.Gender || '', dob: row.DOB || '',
+            doj: row.DOJ || '', dept: row.Department || '', machine: row.Machine || '',
+            designation: row.Designation || '', empType: row.Employment_Type || 'Permanent',
+            contact: row.Contact || '', emergency: row.Emergency_Contact || '',
+            shiftCycle: row.Shift_Cycle || 'DayNight', cycleStart: row.Cycle_Start_Date || '2026-01-06',
+            status: row.Status || 'Active'
+        });
+        leaveBalances[code] = { CL: 10, SL: 14, EL: 15, LWP: 0, usedCL: 0, usedSL: 0, usedEL: 0, usedLWP: 0 };
+        added++;
+    });
+
+    saveData();
+    renderWorkers();
+    closeModal('csvModal');
+    showToast(`Uploaded: ${added} added, ${skipped} skipped`);
+    document.getElementById('csvConfirmBtn').disabled = true;
+    document.getElementById('csvPreview').innerHTML = '';
+    document.getElementById('csvFileInput').value = '';
+}
+
+// ============================================================
+// APPLY LEAVE
+// ============================================================
+function setupLeaveApply() {
+    document.getElementById('leaveFormSection').style.display = 'none';
+    document.getElementById('workerSearchResult').innerHTML = '';
+    document.getElementById('leaveSearchWorker').value = '';
+    selectedWorkerForLeave = null;
+}
+
+function searchWorkerForLeave() {
+    const query = document.getElementById('leaveSearchWorker').value.trim().toLowerCase();
+    const resultDiv = document.getElementById('workerSearchResult');
+
+    if (!query) {
+        resultDiv.innerHTML = '';
+        document.getElementById('leaveFormSection').style.display = 'none';
+        return;
+    }
+
+    const found = workers.filter(w => 
+        w.code.toLowerCase().includes(query) || 
+        w.name.toLowerCase().includes(query)
+    );
+
+    if (found.length === 0) {
+        resultDiv.innerHTML = '<div class="worker-search-result not-found"><strong>❌ No manpower found</strong><br><span style="font-size:12px;">Try searching with correct Code or Name</span></div>';
+        document.getElementById('leaveFormSection').style.display = 'none';
+        return;
+    }
+
+    if (found.length === 1) {
+        selectWorkerForLeave(found[0]);
+    } else {
+        let html = '<div class="worker-search-result found"><strong>🔍 Multiple found. Click to select:</strong><br><div style="margin-top:8px;">';
+        found.forEach(w => {
+            html += `<button class="btn btn-sm btn-outline" style="margin:4px;" onclick='selectWorkerForLeaveByCode("${w.code}")'>${w.code} - ${w.name} (${w.dept}/${w.machine})</button>`;
+        });
+        html += '</div></div>';
+        resultDiv.innerHTML = html;
+    }
+}
+
+function selectWorkerForLeaveByCode(code) {
+    const worker = workers.find(w => w.code === code);
+    if (worker) selectWorkerForLeave(worker);
+}
+
+function selectWorkerForLeave(worker) {
+    selectedWorkerForLeave = worker;
+    const resultDiv = document.getElementById('workerSearchResult');
+    const shift = getCurrentShift(worker.cycleStart, worker.shiftCycle);
+    const bal = leaveBalances[worker.code];
+
+    resultDiv.innerHTML = `
+        <div class="worker-search-result found">
+            <strong>✅ Manpower Found:</strong><br>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:13px;">
+                <div><strong>Code:</strong> ${worker.code}</div>
+                <div><strong>Name:</strong> ${worker.name}</div>
+                <div><strong>Dept:</strong> ${worker.dept}</div>
+                <div><strong>Machine:</strong> ${worker.machine}</div>
+                <div><strong>Shift:</strong> ${getShiftBadge(shift)}</div>
+                <div><strong>Status:</strong> <span class="status-badge ${worker.status === 'Active' ? 'status-active' : 'status-suspended'}">${worker.status}</span></div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('laCode').value = worker.code;
+    document.getElementById('laName').value = worker.name;
+    document.getElementById('laDept').value = worker.dept;
+    document.getElementById('laMachine').value = worker.machine;
+    document.getElementById('laShift').value = shift + (shift === 'General' ? '' : ' Shift');
+    document.getElementById('laBalance').value = `CL:${bal.CL-bal.usedCL} SL:${bal.SL-bal.usedSL} EL:${bal.EL-bal.usedEL}`;
+    document.getElementById('laAppliedBy').value = currentRole === 'admin' ? 'Admin' : 'Shift Incharge';
+
+    document.getElementById('leaveFormSection').style.display = 'block';
+}
+
+function calcLeaveDays() {
+    const from = document.getElementById('laFrom').value;
+    const to = document.getElementById('laTo').value;
+    const type = document.getElementById('laType').value;
+
+    if (!from || !to) return;
+
+    const d1 = new Date(from);
+    const d2 = new Date(to);
+    let days = Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+    if (days < 1) days = 1;
+    if (type.startsWith('Half')) days = 0.5;
+
+    document.getElementById('laDays').value = days;
+
+    if (selectedWorkerForLeave) {
+        const bo = blackoutDates.find(b => {
+            const boDate = new Date(b.date);
+            return boDate >= d1 && boDate <= d2;
+        });
+        if (bo) {
+            showToast('⚠️ Warning: Blackout date ' + bo.date + ' in range!');
+        }
+    }
+}
+
+function submitLeave() {
+    if (!selectedWorkerForLeave) { showToast('Search and select manpower first'); return; }
+
+    const code = selectedWorkerForLeave.code;
+    const type = document.getElementById('laType').value;
+    const from = document.getElementById('laFrom').value;
+    const to = document.getElementById('laTo').value;
+    const days = parseFloat(document.getElementById('laDays').value);
+    const reason = document.getElementById('laReason').value.trim();
+
+    if (!type || !from || !to || !reason) { showToast('Fill all required fields'); return; }
+
+    const d1 = new Date(from);
+    const d2 = new Date(to);
+    const bo = blackoutDates.find(b => {
+        const boDate = new Date(b.date);
+        return boDate >= d1 && boDate <= d2;
+    });
+    if (bo && currentRole !== 'admin') {
+        showToast('❌ Cannot apply on blackout date: ' + bo.date + '. Contact Admin.');
+        return;
+    }
+
+    const worker = selectedWorkerForLeave;
+    const id = 'LA-' + Date.now().toString().slice(-6);
+
+    leaveApplications.push({
+        id, code, name: worker.name, dept: worker.dept, machine: worker.machine,
+        type, from, to, days, reason, status: 'Pending', approvedBy: '',
+        appliedBy: currentRole === 'admin' ? 'Admin' : 'Shift Incharge',
+        shift: getCurrentShift(worker.cycleStart, worker.shiftCycle)
+    });
+
+    saveData();
+    showToast('Leave submitted for ' + worker.name + '! Now pending approval.');
+    clearLeaveForm();
+}
+
+function clearLeaveForm() {
+    document.getElementById('leaveSearchWorker').value = '';
+    document.getElementById('workerSearchResult').innerHTML = '';
+    document.getElementById('leaveFormSection').style.display = 'none';
+    document.getElementById('laType').value = '';
+    document.getElementById('laFrom').value = '';
+    document.getElementById('laTo').value = '';
+    document.getElementById('laDays').value = '';
+    document.getElementById('laReason').value = '';
+    selectedWorkerForLeave = null;
+}
+
+// ============================================================
+// LEAVE APPROVAL
+// ============================================================
+function renderPendingLeave() {
+    const container = document.getElementById('pendingLeaveList');
+    const pending = leaveApplications.filter(l => l.status === 'Pending');
+
+    if (pending.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No pending leave requests</p></div>';
+        return;
+    }
+
+    let html = '<table class="data-table"><thead><tr><th>App ID</th><th>Manpower</th><th>Dept/Machine</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Applied By</th><th>Actions</th></tr></thead><tbody>';
+
+    pending.forEach(l => {
+        html += `<tr>
+            <td><strong>${l.id}</strong></td>
+            <td>${l.name} (${l.code})</td>
+            <td>${l.dept} / ${l.machine}</td>
+            <td><span class="status-badge ${l.type === 'CL' ? 'status-active' : l.type === 'SL' ? 'status-pending' : 'status-approved'}">${l.type}</span></td>
+            <td>${l.from}</td>
+            <td>${l.to}</td>
+            <td>${l.days}</td>
+            <td>${l.reason}</td>
+            <td>${l.appliedBy}</td>
+            <td>
+                <button class="btn btn-sm btn-success" onclick="approveLeave('${l.id}')">✅</button>
+                <button class="btn btn-sm btn-danger" onclick="rejectLeave('${l.id}')">❌</button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function approveLeave(id) {
+    const app = leaveApplications.find(l => l.id === id);
+    if (app) {
+        app.status = 'Approved';
+        app.approvedBy = currentRole === 'admin' ? 'Admin' : 'Shift Incharge';
+
+        const bal = leaveBalances[app.code];
+        if (app.type === 'CL') bal.usedCL += app.days;
+        else if (app.type === 'SL') bal.usedSL += app.days;
+        else if (app.type === 'EL') bal.usedEL += app.days;
+        else if (app.type === 'LWP') bal.usedLWP += app.days;
+
+        saveData();
+        renderPendingLeave();
+        showToast('Leave approved: ' + id);
+    }
+}
+
+function rejectLeave(id) {
+    const app = leaveApplications.find(l => l.id === id);
+    if (app) {
+        app.status = 'Rejected';
+        saveData();
+        renderPendingLeave();
+        showToast('Leave rejected: ' + id);
+    }
+}
+
+// ============================================================
+// LEAVE CALENDAR
+// ============================================================
+function changeMonth(delta) {
+    calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + delta);
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const year = calendarCurrentDate.getFullYear();
+    const month = calendarCurrentDate.getMonth();
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('calMonthYear').textContent = monthNames[month] + ' ' + year;
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const deptFilter = document.getElementById('calDept').value;
+    const shiftFilter = document.getElementById('calShift').value;
+
+    let html = '';
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    dayNames.forEach(d => {
+        html += `<div class="calendar-day" style="background:var(--primary);color:white;font-weight:bold;"><div class="calendar-day-header">${d}</div></div>`;
+    });
+
+    for (let i = 0; i < firstDay; i++) {
+        html += '<div class="calendar-day" style="background:#f0f0f0;"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dateObj = new Date(year, month, day);
+        const weekNum = Math.floor((dateObj - new Date('2026-01-06')) / (1000 * 60 * 60 * 24 * 7));
+        const shift = weekNum % 2 === 0 ? 'Day' : 'Night';
+
+        let events = '';
+        if (shift === 'Day') {
+            events += '<div class="calendar-event event-shift-day">☀️ Day</div>';
+        } else {
+            events += '<div class="calendar-event event-shift-night">🌙 Night</div>';
+        }
+
+        const bo = blackoutDates.find(b => b.date === dateStr);
+        if (bo) {
+            events += '<div class="calendar-event event-blackout">🔒 ' + bo.desc.substring(0, 15) + '</div>';
+        }
+
+        const dayLeaves = leaveApplications.filter(l => {
+            const from = new Date(l.from);
+            const to = new Date(l.to);
+            const check = new Date(dateStr);
+            const inRange = check >= from && check <= to;
+            const deptMatch = !deptFilter || l.dept === deptFilter;
+            const shiftMatch = !shiftFilter || l.shift === shiftFilter;
+            return inRange && deptMatch && shiftMatch && l.status !== 'Rejected';
+        });
+
+        dayLeaves.slice(0, 3).forEach(l => {
+            const typeClass = l.type === 'CL' ? 'event-cl' : l.type === 'SL' ? 'event-sl' : 'event-el';
+            events += `<div class="calendar-event ${typeClass}">${l.name.split(' ')[0]} (${l.type})</div>`;
+        });
+        if (dayLeaves.length > 3) {
+            events += `<div class="calendar-event" style="color:#7f8c8d;">+${dayLeaves.length - 3} more</div>`;
+        }
+
+        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const bgStyle = isToday ? 'background:#fff3cd;' : '';
+
+        html += `<div class="calendar-day" style="${bgStyle}"><div class="calendar-day-header">${day}</div>${events}</div>`;
+    }
+
+    document.getElementById('calendarGrid').innerHTML = html;
+}
+
+// ============================================================
+// BLACKOUT DATES
+// ============================================================
+function renderBlackoutList() {
+    const container = document.getElementById('blackoutList');
+    if (blackoutDates.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No blackout dates set</p></div>';
+        return;
+    }
+
+    let html = '<table class="data-table"><thead><tr><th>Date</th><th>Description</th><th>Department</th><th>Actions</th></tr></thead><tbody>';
+    blackoutDates.forEach((bo, idx) => {
+        html += `<tr>
+            <td><strong>${bo.date}</strong></td>
+            <td>${bo.desc}</td>
+            <td>${bo.dept}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteBlackout(${idx})">🗑️</button></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function addBlackout() {
+    const date = document.getElementById('boDate').value;
+    const desc = document.getElementById('boDesc').value.trim();
+    const dept = document.getElementById('boDept').value;
+
+    if (!date || !desc) { showToast('Fill all required fields'); return; }
+
+    blackoutDates.push({ date, desc, dept });
+    saveData();
+    renderBlackoutList();
+    closeModal('addBlackoutModal');
+    showToast('Blackout date added: ' + date);
+    document.getElementById('boDate').value = '';
+    document.getElementById('boDesc').value = '';
+}
+
+function deleteBlackout(idx) {
+    if (!confirm('Delete this blackout date?')) return;
+    blackoutDates.splice(idx, 1);
+    saveData();
+    renderBlackoutList();
+    showToast('Blackout date deleted');
+}
+
+// ============================================================
+// PENDING USERS (Admin)
+// ============================================================
+async function renderPendingUsers() {
+    const container = document.getElementById('pendingUsersList');
+
+    try {
+        const snapshot = await db.collection('users').where('status', '==', 'pending').get();
+
+        if (snapshot.empty) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No pending user approvals</p></div>';
+            return;
+        }
+
+        let html = '<table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Requested Role</th><th>Actions</th></tr></thead><tbody>';
+        snapshot.forEach(doc => {
+            const u = doc.data();
+            html += `<tr>
+                <td>${u.name}</td>
+                <td>${u.email}</td>
+                <td>${u.dept}</td>
+                <td><span class="status-badge status-pending">${u.role === 'incharge' ? 'Shift Incharge' : 'Operator'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-success" onclick="approveUser('${doc.id}')">✅ Approve</button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectUser('${doc.id}')">❌ Reject</button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Error loading users: ' + error.message + '</p></div>';
+    }
+}
+
+async function approveUser(uid) {
+    try {
+        await db.collection('users').doc(uid).update({ status: 'approved' });
+        renderPendingUsers();
+        showToast('User approved');
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+async function rejectUser(uid) {
+    if (!confirm('Reject and delete this user?')) return;
+    try {
+        await db.collection('users').doc(uid).delete();
+        renderPendingUsers();
+        showToast('User rejected');
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+// ============================================================
+// DEPT LEAVE DETAILS (Operator)
+// ============================================================
+function renderDeptLeaveDetails() {
+    const operatorDept = currentUser ? currentUser.dept : 'Enamel';
+
+    const pending = leaveApplications.filter(l => l.dept === operatorDept && l.status === 'Pending');
+    const approved = leaveApplications.filter(l => l.dept === operatorDept && l.status === 'Approved');
+    const rejected = leaveApplications.filter(l => l.dept === operatorDept && l.status === 'Rejected');
+    const myCode = currentUser ? (workers.find(w => w.name === currentUser.name)?.code || 'PW-001') : 'PW-001';
+    const myLeave = leaveApplications.filter(l => l.code === myCode);
+
+    let html = pending.length === 0 ? '<div class="empty-state"><div class="icon">📭</div><p>No pending leave in your department</p></div>' :
+        '<table class="data-table"><thead><tr><th>App ID</th><th>Manpower</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr></thead><tbody>' +
+        pending.map(l => `<tr><td>${l.id}</td><td>${l.name}</td><td><span class="status-badge status-pending">${l.type}</span></td><td>${l.from}</td><td>${l.to}</td><td>${l.days}</td><td><span class="status-badge status-pending">Pending</span></td></tr>`).join('') +
+        '</tbody></table>';
+    document.getElementById('opPendingLeave').innerHTML = html;
+
+    html = approved.length === 0 ? '<div class="empty-state"><div class="icon">📭</div><p>No approved leave</p></div>' :
+        '<table class="data-table"><thead><tr><th>App ID</th><th>Manpower</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Approved By</th></tr></thead><tbody>' +
+        approved.map(l => `<tr><td>${l.id}</td><td>${l.name}</td><td><span class="status-badge status-approved">${l.type}</span></td><td>${l.from}</td><td>${l.to}</td><td>${l.days}</td><td>${l.approvedBy}</td></tr>`).join('') +
+        '</tbody></table>';
+    document.getElementById('opApprovedLeave').innerHTML = html;
+
+    html = rejected.length === 0 ? '<div class="empty-state"><div class="icon">📭</div><p>No rejected leave</p></div>' :
+        '<table class="data-table"><thead><tr><th>App ID</th><th>Manpower</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th></tr></thead><tbody>' +
+        rejected.map(l => `<tr><td>${l.id}</td><td>${l.name}</td><td><span class="status-badge status-rejected">${l.type}</span></td><td>${l.from}</td><td>${l.to}</td><td>${l.days}</td><td>${l.reason}</td></tr>`).join('') +
+        '</tbody></table>';
+    document.getElementById('opRejectedLeave').innerHTML = html;
+
+    const myBal = leaveBalances[myCode] || { CL: 10, SL: 14, EL: 15, LWP: 0, usedCL: 0, usedSL: 0, usedEL: 0, usedLWP: 0 };
+    html = `<div class="highlight-box highlight-info" style="margin-bottom:15px;"><strong>My Leave Balance:</strong> <span class="tag tag-cl">CL: ${myBal.CL-myBal.usedCL}/${myBal.CL}</span> <span class="tag tag-sl">SL: ${myBal.SL-myBal.usedSL}/${myBal.SL}</span> <span class="tag tag-el">EL: ${myBal.EL-myBal.usedEL}/${myBal.EL}</span></div>`;
+    html += myLeave.length === 0 ? '<div class="empty-state"><div class="icon">📭</div><p>No leave history</p></div>' :
+        '<table class="data-table"><thead><tr><th>App ID</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Approved By</th></tr></thead><tbody>' +
+        myLeave.map(l => `<tr><td>${l.id}</td><td><span class="status-badge ${l.status === 'Approved' ? 'status-approved' : l.status === 'Rejected' ? 'status-rejected' : 'status-pending'}">${l.type}</span></td><td>${l.from}</td><td>${l.to}</td><td>${l.days}</td><td><span class="status-badge ${l.status === 'Approved' ? 'status-approved' : l.status === 'Rejected' ? 'status-rejected' : 'status-pending'}">${l.status}</span></td><td>${l.approvedBy || '-'}</td></tr>`).join('') +
+        '</tbody></table>';
+    document.getElementById('opMyLeave').innerHTML = html;
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function openModal(id) {
+    if (id === 'addWorkerModal') { updateDeptFilter(); }
+    if (id === 'addMachineModal') { updateDeptFilter(); }
+    if (id === 'addBlackoutModal') { updateDeptFilter(); }
+    document.getElementById(id).classList.add('show');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) this.classList.remove('show');
+    });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const laFrom = document.getElementById('laFrom');
+    const laTo = document.getElementById('laTo');
+    if (laFrom) laFrom.min = today;
+    if (laTo) laTo.min = today;
+});
+</script>
+</body>
+</html>
