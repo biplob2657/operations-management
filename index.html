@@ -324,6 +324,34 @@
         .machine-group-actions input { padding: 6px 12px; border: 2px solid var(--border); border-radius: 6px; font-size: 0.85rem; min-width: 150px; }
         .machine-group-actions input:focus { outline: none; border-color: var(--primary); }
 
+        
+        /* Navigation Categories */
+        .nav-category { padding: 14px 20px 8px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+        .nav-category:hover { color: white; }
+        .nav-category .arrow { transition: transform 0.2s; }
+        .nav-category.expanded .arrow { transform: rotate(90deg); }
+        .nav-submenu { list-style: none; padding: 0; margin: 0; max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .nav-submenu.open { max-height: 300px; }
+        .nav-subitem { padding: 9px 20px 9px 36px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; border-left: 3px solid transparent; font-size: 0.88rem; opacity: 0.75; }
+        .nav-subitem:hover { opacity: 1; background: rgba(255,255,255,0.04); border-left-color: rgba(96,165,250,0.3); }
+        .nav-subitem.active { opacity: 1; background: rgba(255,255,255,0.06); border-left-color: #60a5fa; }
+        
+        /* Mobile Bottom Navigation */
+        .mobile-bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); z-index: 999; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+        .mobile-bottom-nav-item { flex: 1; padding: 10px 6px; text-align: center; cursor: pointer; color: rgba(255,255,255,0.7); transition: all 0.2s; border-top: 3px solid transparent; }
+        .mobile-bottom-nav-item.active { color: white; background: rgba(255,255,255,0.08); border-top-color: #60a5fa; }
+        .mobile-bottom-nav-icon { font-size: 1.3rem; display: block; margin-bottom: 2px; }
+        .mobile-bottom-nav-label { font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mobile-subnav-overlay { display: none; position: fixed; bottom: 60px; left: 0; right: 0; background: white; z-index: 998; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); border-radius: 16px 16px 0 0; max-height: 70vh; overflow-y: auto; }
+        .mobile-subnav-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; }
+        .mobile-subnav-title { font-weight: 700; font-size: 1rem; }
+        .mobile-subnav-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--secondary); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .mobile-subnav-close:hover { background: var(--bg); }
+        .mobile-subnav-list { list-style: none; padding: 8px 0; }
+        .mobile-subnav-item { padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.95rem; }
+        .mobile-subnav-item:active { background: var(--bg); }
+        .mobile-subnav-icon { font-size: 1.2rem; }
+
         /* ========== RESPONSIVE ========== */
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); }
@@ -960,18 +988,150 @@ const UI = {
     },
     renderNav(){
         const u=Auth.user(),ia=u.role==='admin';
-        const items=[
-            {id:'dashboard',l:'Dashboard',ic:'ðŸ“Š',s:true},{id:'manpower',l:'Manpower',ic:'ðŸ‘·',s:true},
-            {id:'leaves',l:'Leave Management',ic:'ðŸ“…',s:true},{id:'overtime',l:'Overtime',ic:'â°',s:true},
-            {id:'calendar',l:'Calendar',ic:'ðŸ—“ï¸',s:true},{id:'shifts',l:'Shift Schedule',ic:'ðŸ”„',s:true},
-            {id:'holidays',l:'Holidays',ic:'ðŸŽ‰',s:true},{id:'showcases',l:'Showcase/Suspension',ic:'âš ï¸',s:ia},
-            {id:'production',l:'Production Entry',ic:'🏭',s:true},{id:'scrap',l:'Scrap Entry',ic:'♻',s:true},
-            {id:'electricity',l:'Electricity Meter',ic:'⚡',s:true},{id:'costreport',l:'Machine Cost Report',ic:'💰',s:true},
-            {id:'analytics',l:'Leave & OT Analytics',ic:'ðŸ“Š',s:ia},{id:'performance',l:'Worker Performance',ic:'ðŸ“ˆ',s:ia},
-            {id:'reports',l:'Reports',ic:'ðŸ“ˆ',s:ia},{id:'settings',l:'Settings',ic:'âš™ï¸',s:ia},
-            {id:'audit',l:'Audit Trail',ic:'ðŸ“‹',s:ia},{id:'backup',l:'Backup & Restore',ic:'ðŸ’¾',s:ia}
+        const navStructure = [
+            { type: 'category', id: 'manpower_mgmt', label: 'Manpower Management', icon: '👷', items: [
+                {id:'manpower',l:'All Workers',ic:'👥'},
+                {id:'leaves',l:'Leave Management',ic:'📅'},
+                {id:'overtime',l:'Overtime',ic:'⏰'},
+                {id:'showcases',l:'Showcase/Suspension',ic:'⚠️',adminOnly:true}
+            ]},
+            { type: 'category', id: 'production_mgmt', label: 'Production & Scrap', icon: '🏭', items: [
+                {id:'production',l:'Production Entry',ic:'🏭'},
+                {id:'scrap',l:'Scrap Entry',ic:'♻'}
+            ]},
+            { type: 'item', id:'dashboard',l:'Dashboard',ic:'📊'},
+            { type: 'item', id:'calendar',l:'Calendar',ic:'🗓️'},
+            { type: 'item', id:'electricity',l:'Electricity Meter',ic:'⚡'},
+            { type: 'item', id:'costreport',l:'Machine Cost Report',ic:'💰'},
+            { type: 'category', id: 'settings_cat', label: 'Settings', icon: '⚙️', adminOnly:true, items: [
+                {id:'settings',l:'General Settings',ic:'⚙️'},
+                {id:'shifts',l:'Shift Schedule',ic:'🔄'},
+                {id:'holidays',l:'Holidays',ic:'🎉'}
+            ]},
+            { type: 'item', id:'analytics',l:'Analytics',ic:'📈',adminOnly:true},
+            { type: 'item', id:'performance',l:'Performance',ic:'📊',adminOnly:true},
+            { type: 'item', id:'reports',l:'Reports',ic:'📄',adminOnly:true},
+            { type: 'item', id:'audit',l:'Audit Trail',ic:'📋',adminOnly:true},
+            { type: 'item', id:'backup',l:'Backup & Restore',ic:'💾',adminOnly:true}
         ];
-        document.getElementById('navMenu').innerHTML=items.filter(n=>n.s).map(n=>`<li class="nav-item ${n.id===this.page?'active':''}" onclick="UI.go('${n.id}')"><span>${n.ic}</span><span>${n.l}</span></li>`).join('');
+        let html = '';
+        navStructure.forEach(cat => {
+            if (cat.adminOnly && !ia) return;
+            if (cat.type === 'category') {
+                const visibleItems = cat.items.filter(i => !i.adminOnly || ia);
+                if (visibleItems.length === 0) return;
+                const isExpanded = visibleItems.some(i => i.id === this.page);
+                html += '<li class="nav-category '+(isExpanded?'expanded':'')+'" onclick="UI.toggleNavCategory(\''+cat.id+'\')">';
+                html += '<span><span style="margin-right:8px;">'+cat.icon+'</span>'+cat.label+'</span>';
+                html += '<span class="arrow">▶</span></li>';
+                html += '<ul class="nav-submenu '+(isExpanded?'open':'')+'" id="submenu_'+cat.id+'">';
+                visibleItems.forEach(item => {
+                    html += '<li class="nav-subitem '+(item.id===this.page?'active':'')+'" onclick="UI.go(\''+item.id+'\')">';
+                    html += '<span>'+item.ic+'</span><span>'+item.l+'</span></li>';
+                });
+                html += '</ul>';
+            } else {
+                html += '<li class="nav-item '+(cat.id===this.page?'active':'')+'" onclick="UI.go(\''+cat.id+'\')">';
+                html += '<span>'+cat.ic+'</span><span>'+cat.l+'</span></li>';
+            }
+        });
+        document.getElementById('navMenu').innerHTML = html;
+        this.renderMobileNav(navStructure, ia);
+    },
+    toggleNavCategory(catId){
+        const submenu = document.getElementById('submenu_'+catId);
+        const category = submenu ? submenu.previousElementSibling : null;
+        if (submenu && category) {
+            submenu.classList.toggle('open');
+            category.classList.toggle('expanded');
+        }
+    },
+    renderMobileNav(structure, isAdmin){
+        const mainCats = structure.filter(n => n.type === 'category' && (!n.adminOnly || isAdmin));
+        const otherItems = structure.filter(n => n.type === 'item' && (!n.adminOnly || isAdmin));
+        let html = '<div class="mobile-bottom-nav" id="mobileBottomNav">';
+        const dashItem = otherItems.find(i => i.id === 'dashboard');
+        if (dashItem) {
+            html += '<div class="mobile-bottom-nav-item '+(this.page==='dashboard'?'active':'')+'" onclick="UI.go(\'dashboard\')">';
+            html += '<span class="mobile-bottom-nav-icon">'+dashItem.ic+'</span>';
+            html += '<span class="mobile-bottom-nav-label">'+dashItem.l+'</span></div>';
+        }
+        const mpCat = mainCats.find(c => c.id === 'manpower_mgmt');
+        if (mpCat) {
+            html += '<div class="mobile-bottom-nav-item '+(['manpower','leaves','overtime','showcases'].includes(this.page)?'active':'')+'" onclick="UI.showMobileSubnav(\'manpower_mgmt\')">';
+            html += '<span class="mobile-bottom-nav-icon">'+mpCat.icon+'</span>';
+            html += '<span class="mobile-bottom-nav-label">Manpower</span></div>';
+        }
+        const prodCat = mainCats.find(c => c.id === 'production_mgmt');
+        if (prodCat) {
+            html += '<div class="mobile-bottom-nav-item '+(['production','scrap'].includes(this.page)?'active':'')+'" onclick="UI.showMobileSubnav(\'production_mgmt\')">';
+            html += '<span class="mobile-bottom-nav-icon">'+prodCat.icon+'</span>';
+            html += '<span class="mobile-bottom-nav-label">Production</span></div>';
+        }
+        if (isAdmin) {
+            const setCat = mainCats.find(c => c.id === 'settings_cat');
+            if (setCat) {
+                html += '<div class="mobile-bottom-nav-item '+(['settings','shifts','holidays'].includes(this.page)?'active':'')+'" onclick="UI.showMobileSubnav(\'settings_cat\')">';
+                html += '<span class="mobile-bottom-nav-icon">'+setCat.icon+'</span>';
+                html += '<span class="mobile-bottom-nav-label">Settings</span></div>';
+            }
+        }
+        if (otherItems.length > 1) {
+            html += '<div class="mobile-bottom-nav-item '+(['calendar','electricity','costreport','analytics','performance','reports','audit','backup'].includes(this.page)?'active':'')+'" onclick="UI.showMobileSubnav(\'more_menu\')">';
+            html += '<span class="mobile-bottom-nav-icon">☰</span>';
+            html += '<span class="mobile-bottom-nav-label">More</span></div>';
+        }
+        html += '</div>';
+        document.getElementById('mobileNavContainer').innerHTML = html;
+    },
+    showMobileSubnav(catId){
+        const u=Auth.user(),ia=u.role==='admin';
+        const structure = [
+            { type: 'category', id: 'manpower_mgmt', label: 'Manpower Management', icon: '👷', items: [
+                {id:'manpower',l:'All Workers',ic:'👥'},
+                {id:'leaves',l:'Leave Management',ic:'📅'},
+                {id:'overtime',l:'Overtime',ic:'⏰'},
+                {id:'showcases',l:'Showcase/Suspension',ic:'⚠️',adminOnly:true}
+            ]},
+            { type: 'category', id: 'production_mgmt', label: 'Production & Scrap', icon: '🏭', items: [
+                {id:'production',l:'Production Entry',ic:'🏭'},
+                {id:'scrap',l:'Scrap Entry',ic:'♻'}
+            ]},
+            { type: 'category', id: 'settings_cat', label: 'Settings', icon: '⚙️', adminOnly:true, items: [
+                {id:'settings',l:'General Settings',ic:'⚙️'},
+                {id:'shifts',l:'Shift Schedule',ic:'🔄'},
+                {id:'holidays',l:'Holidays',ic:'🎉'}
+            ]},
+            { type: 'category', id: 'more_menu', label: 'More Options', icon: '☰', items: [
+                {id:'dashboard',l:'Dashboard',ic:'📊'},
+                {id:'calendar',l:'Calendar',ic:'🗓️'},
+                {id:'electricity',l:'Electricity Meter',ic:'⚡'},
+                {id:'costreport',l:'Machine Cost Report',ic:'💰'},
+                {id:'analytics',l:'Analytics',ic:'📈',adminOnly:true},
+                {id:'performance',l:'Performance',ic:'📊',adminOnly:true},
+                {id:'reports',l:'Reports',ic:'📄',adminOnly:true},
+                {id:'audit',l:'Audit Trail',ic:'📋',adminOnly:true},
+                {id:'backup',l:'Backup & Restore',ic:'💾',adminOnly:true}
+            ]}
+        ];
+        const cat = structure.find(c => c.id === catId);
+        if (!cat) return;
+        const visibleItems = cat.items.filter(i => !i.adminOnly || ia);
+        let html = '<div class="mobile-subnav-overlay" id="mobileSubnavOverlay" onclick="if(event.target===this)UI.hideMobileSubnav()">';
+        html += '<div class="mobile-subnav-header">';
+        html += '<span class="mobile-subnav-title"><span style="margin-right:8px;">'+cat.icon+'</span>'+cat.label+'</span>';
+        html += '<button class="mobile-subnav-close" onclick="UI.hideMobileSubnav()">&times;</button></div>';
+        html += '<ul class="mobile-subnav-list">';
+        visibleItems.forEach(item => {
+            html += '<li class="mobile-subnav-item" onclick="UI.go(\''+item.id+'\');UI.hideMobileSubnav()">';
+            html += '<span class="mobile-subnav-icon">'+item.ic+'</span><span>'+item.l+'</span></li>';
+        });
+        html += '</ul></div>';
+        document.getElementById('mobileSubnavContainer').innerHTML = html;
+        document.getElementById('mobileSubnavOverlay').style.display = 'block';
+    },
+    hideMobileSubnav(){
+        document.getElementById('mobileSubnavContainer').innerHTML = '';
     },
     go(p){
         this.page=p;this.renderNav();
@@ -1016,12 +1176,39 @@ const UI = {
         const onLeave=data.leaves.filter(l=>{return l.status==='approved'&&new Date(l.startDate)<=new Date(today)&&new Date(l.endDate)>=new Date(today);}).length;
         const totOT=data.ot_requests.filter(o=>o.status==='approved').reduce((s,o)=>s+(o.amount||0),0);
         const totSalary=mp.filter(m=>m.status==='active').reduce((s,m)=>s+(m.currentSalary||0),0);
+        // Additional dashboard stats
+        const totalWorkers=mp.length, approvedLeaves=data.leaves.filter(l=>l.status==='approved'&&(ia||!u.department||l.department===u.department)).length;
+        const rejectedLeaves=data.leaves.filter(l=>l.status==='rejected'&&(ia||!u.department||l.department===u.department)).length;
+        const approvedOT=data.ot_requests.filter(o=>o.status==='approved'&&(ia||!u.department||o.department===u.department)).length;
+        const rejectedOT=data.ot_requests.filter(o=>o.status==='rejected'&&(ia||!u.department||o.department===u.department)).length;
+        const totalProd=Store.getCol('production_entries').reduce((s,p)=>s+(parseFloat(p.quantity)||0),0);
+        const totalScrap=Store.getCol('scrap_entries').reduce((s,s)=>s+(parseFloat(s.quantity)||0),0);
+        const showcasesPending=data.showcases.filter(s=>s.status!=='resolved'&&s.status!=='ended').length;
+        const holidaysCount=data.holidays.length;
         document.getElementById('mainContent').innerHTML=`<div class="fade-in">
             <div class="grid grid-4">
-                <div class="stat-card"><div class="stat-icon blue">ðŸ‘·</div><div><div class="stat-value">${active}</div><div class="stat-label">Active Workers</div></div></div>
-                <div class="stat-card"><div class="stat-icon orange">ðŸ“…</div><div><div class="stat-value">${pLeaves}</div><div class="stat-label">Pending Leaves</div></div></div>
-                <div class="stat-card"><div class="stat-icon red">â°</div><div><div class="stat-value">${pOT}</div><div class="stat-label">Pending OT</div></div></div>
-                <div class="stat-card"><div class="stat-icon green">ðŸ’°</div><div><div class="stat-value">${U.fmtCur(totSalary)}</div><div class="stat-label">Monthly Payroll</div></div></div>
+                <div class="stat-card"><div class="stat-icon blue">👷</div><div><div class="stat-value">${active}</div><div class="stat-label">Active Workers</div></div></div>
+                <div class="stat-card"><div class="stat-icon orange">📅</div><div><div class="stat-value">${pLeaves}</div><div class="stat-label">Pending Leaves</div></div></div>
+                <div class="stat-card"><div class="stat-icon red">⏰</div><div><div class="stat-value">${pOT}</div><div class="stat-label">Pending OT</div></div></div>
+                <div class="stat-card"><div class="stat-icon green">💰</div><div><div class="stat-value">${U.fmtCur(totSalary)}</div><div class="stat-label">Monthly Payroll</div></div></div>
+            </div>
+            <div class="grid grid-4" style="margin-top:20px;">
+                <div class="stat-card"><div class="stat-icon cyan">📊</div><div><div class="stat-value">${totalWorkers}</div><div class="stat-label">Total Workers</div></div></div>
+                <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value">${approvedLeaves}</div><div class="stat-label">Approved Leaves</div></div></div>
+                <div class="stat-card"><div class="stat-icon red">❌</div><div><div class="stat-value">${rejectedLeaves}</div><div class="stat-label">Rejected Leaves</div></div></div>
+                <div class="stat-card"><div class="stat-icon orange">⚠️</div><div><div class="stat-value">${sus}</div><div class="stat-label">Suspended</div></div></div>
+            </div>
+            <div class="grid grid-4" style="margin-top:20px;">
+                <div class="stat-card"><div class="stat-icon green">✓</div><div><div class="stat-value">${approvedOT}</div><div class="stat-label">Approved OT</div></div></div>
+                <div class="stat-card"><div class="stat-icon red">✕</div><div><div class="stat-value">${rejectedOT}</div><div class="stat-label">Rejected OT</div></div></div>
+                <div class="stat-card"><div class="stat-icon blue">🏭</div><div><div class="stat-value">${totalProd.toLocaleString('en-IN')}</div><div class="stat-label">Total Production</div></div></div>
+                <div class="stat-card"><div class="stat-icon orange">♻</div><div><div class="stat-value">${totalScrap.toLocaleString('en-IN')} kg</div><div class="stat-label">Total Scrap</div></div></div>
+            </div>
+            <div class="grid grid-4" style="margin-top:20px;">
+                <div class="stat-card"><div class="stat-icon cyan">📅</div><div><div class="stat-value">${onLeave}</div><div class="stat-label">On Leave Today</div></div></div>
+                <div class="stat-card"><div class="stat-icon orange">⚠️</div><div><div class="stat-value">${showcasesPending}</div><div class="stat-label">Pending Showcase</div></div></div>
+                <div class="stat-card"><div class="stat-icon green">🎉</div><div><div class="stat-value">${holidaysCount}</div><div class="stat-label">Holidays</div></div></div>
+                <div class="stat-card"><div class="stat-icon blue">💵</div><div><div class="stat-value">${U.fmtCur(totOT)}</div><div class="stat-label">Total OT Paid</div></div></div>
             </div>
             <div class="grid grid-2">
                 <div class="card"><div class="card-header"><span class="card-title">Manpower Distribution</span>
@@ -1065,19 +1252,22 @@ const UI = {
     r_manpower(){
         const data=Store.getAll(),u=Auth.user(),ia=u.role==='admin';
         let mp=data.manpower; if(!ia&&u.department)mp=mp.filter(m=>m.department===u.department);
-        this.selMp=[];
+        this.selMp=[]; this.mpPage=1; this.mpPageSize=35;
         document.getElementById('mainContent').innerHTML=`<div class="fade-in">
             <div class="toolbar">
                 <div class="search-box"><input type="text" id="mpS" placeholder="Search by name or ID..." oninput="UI.fltMp()"></div>
                 <select class="form-select" id="mpD" onchange="UI.fltMp()" style="width:170px;"><option value="">All Departments</option>${data.departments.map(d=>`<option value="${d}">${d}</option>`).join('')}</select>
                 <select class="form-select" id="mpSt" onchange="UI.fltMp()" style="width:140px;"><option value="">All Status</option><option value="active">Active</option><option value="suspended">Suspended</option></select>
-                ${ia?`<button class="btn btn-success" onclick="UI.mpModal()">+ Add</button><button class="btn btn-info" onclick="UI.csvModal()">ðŸ“ CSV</button><button class="btn btn-danger" id="bdBtn" onclick="UI.bulkDelMp()" style="display:none;">ðŸ—‘ï¸ Delete</button>`:''}
+                ${ia?`<button class="btn btn-success" onclick="UI.mpModal()">+ Add</button><button class="btn btn-info" onclick="UI.csvModal()">📄 CSV</button><button class="btn btn-danger" id="bdBtn" onclick="UI.bulkDelMp()" style="display:none;">🗑️ Delete</button>`:''}
             </div>
             <div class="card"><div class="card-body"><div class="table-responsive"><table><thead><tr>
                 ${ia?'<th class="checkbox-col"><input type="checkbox" id="saMp" onchange="UI.togAllMp()"></th>':''}
                 <th>Emp ID</th><th>Name</th><th>Department</th><th>Machine</th><th>Shift</th><th>Designation</th><th>Salary</th><th>Status</th><th>Leave Bal</th>${ia?'<th>Actions</th>':''}
-            </tr></thead><tbody id="mpTb">${this.mpRows(mp)}</tbody></table></div></div></div>
+            </tr></thead><tbody id="mpTb"></tbody></table></div>
+            <div id="mpPagination" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;"></div>
+            </div></div>
         </div>`;
+        this.fltMp();
     },
     mpRows(mp){
         const ia=Auth.isAdmin();
@@ -1111,7 +1301,27 @@ const UI = {
         const s=document.getElementById('mpS').value.toLowerCase(),d=document.getElementById('mpD').value,st=document.getElementById('mpSt').value;
         let mp=Store.getCol('manpower');const u=Auth.user();if(u.role!=='admin'&&u.department)mp=mp.filter(m=>m.department===u.department);
         mp=mp.filter(m=>(!s||m.name.toLowerCase().includes(s)||m.employeeId.toLowerCase().includes(s))&&(!d||m.department===d)&&(!st||m.status===st));
-        document.getElementById('mpTb').innerHTML=this.mpRows(mp);
+        this.mpFilteredData=mp; this.mpPage=1; this.renderMpTable();
+    },
+    renderMpTable(){
+        const mp=this.mpFilteredData||[], pageSize=this.mpPageSize||35, page=this.mpPage||1;
+        const totalPages=Math.ceil(mp.length/pageSize)||1;
+        const start=(page-1)*pageSize, end=start+pageSize;
+        const pageData=mp.slice(start,end);
+        const ia=Auth.isAdmin();
+        document.getElementById('mpTb').innerHTML=this.mpRows(pageData);
+        const pagEl=document.getElementById('mpPagination');
+        if(pagEl){
+            let html=`<span style="color:var(--secondary);font-size:0.9rem;">Showing ${Math.min(start+1,mp.length)}-${Math.min(end,mp.length)} of ${mp.length} entries</span>`;
+            html+=`<div style="display:flex;gap:8px;align-items:center;">`;
+            if(totalPages>1){
+                html+=`<button class="btn btn-sm btn-outline" ${page<=1?'disabled':''} onclick="UI.mpPage=${page-1};UI.renderMpTable()">Previous</button>`;
+                html+=`<span style="padding:6px 12px;font-weight:600;">Page ${page} of ${totalPages}</span>`;
+                html+=`<button class="btn btn-sm btn-outline" ${page>=totalPages?'disabled':''} onclick="UI.mpPage=${page+1};UI.renderMpTable()">Next</button>`;
+            }
+            html+=`</div>`;
+            pagEl.innerHTML=html;
+        }
     },
     mpModal(eid=null){
         const data=Store.getAll(),e=eid?data.manpower.find(m=>m.id===eid):null,ie=!!e;
@@ -2314,6 +2524,9 @@ function logout(){
 /* =================== INIT =================== */
 document.addEventListener('DOMContentLoaded',()=>UI.init());
 </script>
+    <!-- Mobile Navigation Containers -->
+    <div id="mobileNavContainer"></div>
+    <div id="mobileSubnavContainer"></div>
 </body>
 </html>
 
